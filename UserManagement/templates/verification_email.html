@@ -1,0 +1,63 @@
+<!-- templates/email/verification_email.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f6f6f6;
+            margin: 0;
+            padding: 0;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .email-header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px;
+            border-radius: 8px 8px 0 0;
+        }
+        .email-body {
+            padding: 20px;
+        }
+        .email-button {
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: inline-block;
+            margin-top: 20px;
+        }
+        .email-footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 12px;
+            color: #777777;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="email-header">
+            <h1>Email Verification</h1>
+        </div>
+        <div class="email-body">
+            <p>Hi {{ username }},</p>
+            <p>Thank you for signing up! Please verify your email address by clicking the button below.</p>
+            <a href="{{ verification_link }}" class="email-button">Verify Email Address</a>
+            <p>If the button doesn't work, copy and paste the following URL into your browser:</p>
+            <p>{{ verification_link }}</p>
+        </div>
+        <div class="email-footer">
+            <p>&copy; 2024 Your Website. All Rights Reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
