@@ -20,4 +20,9 @@ urlpatterns = [
     path('comments/reply/<id>',ReplyView.as_view()),
     path('comments/reply-to-reply/<id>',ReplyToReplyView.as_view()),
 
+
+
+    # Recommendations 
+    path('recommend/posts/', PostRecommendationView.as_view()),
+
 ]

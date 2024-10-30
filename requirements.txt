@@ -64,3 +64,7 @@ tensorflow
 opennsfw2
 django-channels-jwt
 channels_redis
+faker
+pandas
+scikit-learn
+numpy

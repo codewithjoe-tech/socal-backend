@@ -6,7 +6,7 @@ from . serializers import *
 from rest_framework import status
 from rest_framework import generics
 from rest_framework.views import APIView
-from django.db.models import Q
+from django.db.models import Q,Case, When, Value, BooleanField
 from .pagination import *
 
 
@@ -325,3 +325,22 @@ class ReplyToReplyView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+    
+
+class PostRecommendationView(APIView):
+    def get(self, request):
+        try:
+            recommendation = Recommendation_Posts.objects.filter(profile=request.user.profile).order_by('-id').first()
+            recommended_post_ids = recommendation.recommendation.get("recommended_post_ids", [])
+            liked_post_ids = Like.objects.filter(profile=request.user.profile, enabled=True).values_list('post_id', flat=True)
+            following_profiles = Follow.objects.filter(follower=request.user.profile, accepted=True, disabled=False).values_list('following_id', flat=True)
+            posts = Post.objects.filter(id__in=recommended_post_ids).exclude(
+            Q(ai_reported=True) | Q(id__in=liked_post_ids)
+            )
+            paginator = PostPagination()
+            paginated_posts = paginator.paginate_queryset(posts, request)
+            serializer = PostSerializer(paginated_posts, many=True, context={'request': request})
+            return paginator.get_paginated_response(serializer.data)
+        except Exception as e:
+            print(e)
+            return Response({"message":"Some Error occured"},status=status.HTTP_400_BAD_REQUEST)

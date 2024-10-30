@@ -46,7 +46,7 @@ INSTALLED_APPS = [
 
 ]
 CSRF_TRUSTED_ORIGINS = ['http://localhost:5173']
-
+DATASET_DIR = os.path.join(BASE_DIR, 'data')
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 

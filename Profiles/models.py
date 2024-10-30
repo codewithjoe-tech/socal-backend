@@ -82,3 +82,59 @@ class Comment(models.Model):
 
 
 
+
+class Reels(models.Model):
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="reels")
+    video = models.FileField(upload_to='user/reels/')
+    description = models.TextField(null=True, blank=True)
+    hide_likes = models.BooleanField(default=False)
+    hide_comments = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    ai_reported = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.description[:50] + f" by {self.profile.user}"
+
+    @property
+    def like_count(self):
+        return ReelLike.objects.filter(reel=self, enabled=True).count()
+
+    @property
+    def comment_count(self):
+        return self.comments.count()
+
+class ReelLike(models.Model):
+    reel = models.ForeignKey(Reels, related_name='likes', on_delete=models.CASCADE)
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
+    enabled = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('reel', 'profile')
+        indexes = [
+            models.Index(fields=['reel']),
+        ]
+
+    def __str__(self):
+        return f"{self.profile.user} liked reel {self.reel.id}"
+
+class ReelComment(models.Model):
+    reel = models.ForeignKey(Reels, related_name='comments', on_delete=models.CASCADE)
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
+    content = models.TextField()
+    parent = models.ForeignKey('self', related_name='replies', on_delete=models.CASCADE, null=True, blank=True)
+    reply_parent = models.ForeignKey('self', related_name='reply_to_reply', on_delete=models.CASCADE, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    ai_reported = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Comment by {self.profile.user} on reel {self.reel.id}"
+
+
+
+class Recommendation_Posts(models.Model):
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="recommendation_posts",null=True, blank=True)
+    recommendation = models.JSONField()
+
