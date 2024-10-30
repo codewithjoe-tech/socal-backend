@@ -254,7 +254,6 @@ class SeenConsumer(AsyncWebsocketConsumer):
 
 
 
-
 class NotifyConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.user = self.scope['user']
@@ -270,6 +269,7 @@ class NotifyConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data):
         data = json.loads(text_data)
         action = data.get('action')
+        print(data)
 
         if action == 'call_request':
             target_username = data.get('target_username')
@@ -285,6 +285,7 @@ class NotifyConsumer(AsyncWebsocketConsumer):
                 )
 
         elif action == 'accept_call':
+            print("accepting call")
             target_username = data.get('target_username')
             if target_username:
                 await self.channel_layer.group_send(
@@ -296,12 +297,62 @@ class NotifyConsumer(AsyncWebsocketConsumer):
                 )
 
         elif action == 'reject':
+            
             target_username = data.get('target_username')
+          
             await self.channel_layer.group_send(
                 f"notify_{target_username}",
                 {
                     'type': 'send_call_end',
                     'from': self.username
+                }
+            )
+
+        elif action == 'abandon_call':
+            target_username = data.get('target_username')
+            print(target_username)
+            await self.channel_layer.group_send(
+                f"notify_{target_username}",
+                {
+                    'type': 'send_call_abandoned',
+                    'from': self.username
+                }
+            )
+
+        elif action == 'offer':
+            target_username = data.get('target_username')
+            print(target_username)
+            offer = data.get('offer')
+            await self.channel_layer.group_send(
+                f"notify_{target_username}",
+                {
+                    'type': 'send_offer',
+                    'from': self.username,
+                    'offer': offer
+                }
+            )
+
+        elif action == 'answer':
+            target_username = data.get('target_username')
+            answer = data.get('answer')
+            await self.channel_layer.group_send(
+                f"notify_{target_username}",
+                {
+                    'type': 'send_answer',
+                    'from': self.username,
+                    'answer': answer
+                }
+            )
+
+        elif action == 'ice_candidate':
+            target_username = data.get('target_username')
+            candidate = data.get('candidate')
+            await self.channel_layer.group_send(
+                f"notify_{target_username}",
+                {
+                    'type': 'send_ice_candidate',
+                    'from': self.username,
+                    'candidate': candidate
                 }
             )
 
@@ -324,8 +375,105 @@ class NotifyConsumer(AsyncWebsocketConsumer):
             'from': event['from']
         }))
 
+    async def send_call_abandoned(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'CALL_ABANDONED',
+            'from': event['from']
+        }))
+
     @sync_to_async
     def get_profile_picture(self, user):
         if hasattr(user, 'profile') and user.profile.profile_picture:
             return f"{BASE_URL}{user.profile.profile_picture.url}"
         return "/user.png"
+    
+
+    async def send_offer(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'OFFER',
+            'from': event['from'],
+            'offer': event['offer']
+        }))
+
+    async def send_answer(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'ANSWER',
+            'from': event['from'],
+            'answer': event['answer']
+        }))
+
+    async def send_ice_candidate(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'ICE_CANDIDATE',
+            'from': event['from'],
+            'candidate': event['candidate']
+        }))
+
+
+
+class VideoCallConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        # Extract the username from the URL route and use it to create a unique group for the user
+        self.username = self.scope['url_route']['kwargs']['username']
+        self.room_group_name = f"video_call_{self.username}"
+
+        # Add the user to their own group, so they can receive signaling messages
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+
+        await self.accept()
+        print(f"WebSocket connection accepted for user: {self.username}")
+
+    async def disconnect(self, close_code):
+        # Remove the user from the group on disconnect
+        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+        print(f"WebSocket connection closed for user: {self.username}")
+
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+        action = data.get("action")
+        print(data)
+
+        if action == "offer":
+            
+            target_username = data.get("target_username")
+            await self.forward_to_target(target_username, {
+                "type": "OFFER",
+                "offer": data["offer"],
+                "from": self.username,
+            })
+        
+        elif action == "answer":
+            # Forward the answer to the target user
+            target_username = data.get("target_username")
+            await self.forward_to_target(target_username, {
+                "type": "ANSWER",
+                "answer": data["answer"],
+                "from": self.username,
+            })
+
+        elif action == "ice_candidate":
+            # Forward ICE candidates to the target user
+            target_username = data.get("target_username")
+            await self.forward_to_target(target_username, {
+                "type": "ICE_CANDIDATE",
+                "candidate": data["candidate"],
+                "from": self.username,
+            })
+
+        elif action == "end_call":
+            target_username = data.get("target_username")
+            await self.forward_to_target(target_username, {
+                "type": "END_CALL",
+                "from": self.username,
+            })
+
+    async def forward_to_target(self, target_username, message):
+        target_group_name = f"video_call_{target_username}"
+        await self.channel_layer.group_send(target_group_name, {
+            "type": "send_sdp_message",
+            "message": message,
+        })
+
+    async def send_sdp_message(self, event):
+        
+        await self.send(text_data=json.dumps(event["message"]))
