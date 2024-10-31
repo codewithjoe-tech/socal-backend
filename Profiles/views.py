@@ -333,9 +333,9 @@ class PostRecommendationView(APIView):
             recommendation = Recommendation_Posts.objects.filter(profile=request.user.profile).order_by('-id').first()
             recommended_post_ids = recommendation.recommendation.get("recommended_post_ids", [])
             liked_post_ids = Like.objects.filter(profile=request.user.profile, enabled=True).values_list('post_id', flat=True)
-            following_profiles = Follow.objects.filter(follower=request.user.profile, accepted=True, disabled=False).values_list('following_id', flat=True)
             posts = Post.objects.filter(id__in=recommended_post_ids).exclude(
-            Q(ai_reported=True) | Q(id__in=liked_post_ids)
+            Q(ai_reported=True) |
+            Q(id__in=liked_post_ids) 
             )
             paginator = PostPagination()
             paginated_posts = paginator.paginate_queryset(posts, request)
@@ -344,3 +344,50 @@ class PostRecommendationView(APIView):
         except Exception as e:
             print(e)
             return Response({"message":"Some Error occured"},status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+
+class ReelView(generics.CreateAPIView):
+    serializer_class = ReelSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(profile=self.request.user.profile)
+
+
+class ListReelView(APIView):
+    permission_classes = (IsAuthenticated,)
+    def get(self, request, id):
+        try:
+            posts = Reels.objects.filter(profile__user__username = id).order_by('-id')
+            serailizer = ReelSerializer(posts,many=True,context={'request':request})
+            
+            return Response(serailizer.data,status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(
+                {'details':str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    
+class ReelsDetailsView(generics.RetrieveAPIView):
+    queryset = Reels.objects.all()
+    serializer_class = ReelSerializer
+    lookup_field = 'id'
+
+
+class DeletePost(APIView):
+    def delete(self, request, id):
+        reel = Reels.objects.get(id=id)
+        if reel.profile.user.id == request.user.id:
+            reel.delete()
+            return Response({"message":"Reel deleted successfully"},status=status.HTTP_200_OK)
+        
+        return Response({"message":"Unauthorized action"},status=status.HTTP_401_UNAUTHORIZED)

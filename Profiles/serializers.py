@@ -66,7 +66,7 @@ class PostSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         profile = obj.profile
         return {
-            'full_name':profile.user.full_name,
+            'full_name':profile.user.full_name or "",
             'username':profile.user.username,
             'id':profile.id,
             "profile_picture":request.build_absolute_uri(profile.profile_picture.url) if profile.profile_picture else '/user.webp'
@@ -154,3 +154,62 @@ class CommentSerializer(serializers.ModelSerializer):
 
     
 
+
+
+
+class ReelSerializer(serializers.ModelSerializer):
+    time_of_post = serializers.SerializerMethodField()
+    profile = serializers.SerializerMethodField()
+    like_count = serializers.SerializerMethodField()
+    comment_count =serializers.SerializerMethodField()
+    user_liked = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Reels
+        fields = '__all__' 
+
+    def get_time_of_post(self, obj):
+        return obj.updated_at
+    
+    def get_profile(self,obj):
+        request = self.context.get('request')
+        profile = obj.profile
+        return {
+            'full_name':profile.user.full_name,
+            'username':profile.user.username,
+            'id':profile.id,
+            "profile_picture":request.build_absolute_uri(profile.profile_picture.url) if profile.profile_picture else '/user.webp'
+        }
+
+    def get_like_count(self,obj):
+        return obj.like_count
+    
+    def get_comment_count(self,obj):
+        return obj.comment_count
+    
+    def get_user_liked(self,obj):
+        request = self.context.get('request')
+        user = request.user
+        likes = ReelLike.objects.filter(reel=obj,profile=user.profile,enabled=True).exists()
+        if likes:
+            return True
+        else:
+            return False
+        
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        request = self.context.get('request')
+
+
+        if instance.ai_reported:
+            representation['video'] = '/ai_reported.png'
+            if request.user.is_superuser :
+                representation['video'] = request.build_absolute_uri(instance.video.url)
+                
+        else:
+            if instance.video:
+                representation['video'] = request.build_absolute_uri(instance.video.url)
+
+            else:
+                representation['video'] = None
+        return representation

@@ -25,4 +25,11 @@ urlpatterns = [
     # Recommendations 
     path('recommend/posts/', PostRecommendationView.as_view()),
 
+    # Reels
+
+    path('upload/reel/', ReelView.as_view()),
+    path('reels/<id>',ListReelView.as_view()),
+    path('reel/<id>',PostDetailsView.as_view()),
+    path('reel/delete/<id>',DeletePost.as_view()),
+
 ]
