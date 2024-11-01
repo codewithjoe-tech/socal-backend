@@ -29,7 +29,17 @@ urlpatterns = [
 
     path('upload/reel/', ReelView.as_view()),
     path('reels/<id>',ListReelView.as_view()),
-    path('reel/<id>',PostDetailsView.as_view()),
-    path('reel/delete/<id>',DeletePost.as_view()),
+    path('reel/<id>',ReelsDetailsView.as_view()),
+    path('reel/delete/<id>',DeleteReel.as_view()),
+
+
+    
+    path('reel/like/<id>',like_reel),
+
+    path('reels/comments/<id>',ReelCommentView.as_view()),
+    path('reels/comments/reply/<id>',ReelReplyView.as_view()),
+    path('reels/comments/reply-to-reply/<id>',ReelReplyToReplyView.as_view()),
+
+    path('recommend/reels/', ReelRecommendationView.as_view()),
 
 ]

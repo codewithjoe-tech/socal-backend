@@ -213,3 +213,53 @@ class ReelSerializer(serializers.ModelSerializer):
             else:
                 representation['video'] = None
         return representation
+    
+
+class ReelCommentSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+    profile_pic = serializers.SerializerMethodField()
+    profile_id = serializers.SerializerMethodField()
+    replies = serializers.SerializerMethodField()
+    has_replies = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ReelComment
+        fields = "__all__"
+
+    def get_user(self, obj):
+        return obj.profile.user.username
+
+    def get_profile_pic(self, obj):
+        request = self.context.get('request')
+        profile = obj.profile
+        return request.build_absolute_uri(profile.profile_picture.url) if profile.profile_picture else '/user.webp'
+
+    def get_profile_id(self, obj):
+        return obj.profile.id
+
+    def get_replies(self, obj):
+        reply_status = self.context.get('reply_status', False)
+        selected_comment_id = self.context.get('selected_comment_id', None)
+
+        if reply_status and selected_comment_id:
+            try:
+                selected_comment = ReelComment.objects.get(id=selected_comment_id)
+                if selected_comment.parent and selected_comment.parent.id == obj.id:
+                    if selected_comment.reply_parent:
+                        return [
+                            ReelCommentSerializer(selected_comment.reply_parent, context=self.context).data,
+                            ReelCommentSerializer(selected_comment, context=self.context).data
+                        ]
+                    return [ReelCommentSerializer(selected_comment, context=self.context).data]
+            except ReelComment.DoesNotExist:
+                return []
+        return []
+
+    def get_has_replies(self, obj):
+        return ReelComment.objects.filter(parent=obj).exists()
+
+
+
+
+
+

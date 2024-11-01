@@ -4,7 +4,6 @@ from django.contrib.contenttypes.models import ContentType
 from .models import *
 
 class ContentObjectRelatedField(serializers.RelatedField):
-
     def to_representation(self, data):
         if isinstance(data, Post):
             return {"type": "Post", "user": data.profile.user.username, "id": data.id}
@@ -12,6 +11,10 @@ class ContentObjectRelatedField(serializers.RelatedField):
             return {'type': "Profile", "user": data.user.username, "id": data.id}
         elif isinstance(data, Comment):
             return {'type': "Comment", "user": data.user.username, "id": data.id}
+        elif isinstance(data, Reels):
+            return {"type": "Reels", "user": data.profile.user.username, "id": data.id}
+        elif isinstance(data, ReelComment):
+            return {'type': "ReelComment", "user": data.user.username, "id": data.id}
 
     def to_internal_value(self, data):
         content_type = data.get('content_type', "")
@@ -32,6 +35,16 @@ class ContentObjectRelatedField(serializers.RelatedField):
                 return Comment.objects.get(id=object_id)
             except Comment.DoesNotExist:
                 raise serializers.ValidationError("Comment with this id does not exist.")
+        elif content_type == "reel":
+            try:
+                return Reels.objects.get(id=object_id)
+            except Reels.DoesNotExist:
+                raise serializers.ValidationError("Reel with this id does not exist.")
+        elif content_type == "reelcomment":
+            try:
+                return ReelComment.objects.get(id=object_id)
+            except ReelComment.DoesNotExist:
+                raise serializers.ValidationError("ReelComment with this id does not exist.")
         else:
             raise serializers.ValidationError("Invalid content type provided.")
 
@@ -46,7 +59,6 @@ class ReportPostSerializer(serializers.ModelSerializer):
         model = ReportPost
         fields = "__all__"
         
-
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         representation['content_obj'] = self.fields['content_obj'].to_representation(instance.content_object)

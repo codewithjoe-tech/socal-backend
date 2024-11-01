@@ -94,7 +94,7 @@ class Reels(models.Model):
     ai_reported = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.description[:50] + f" by {self.profile.user}"
+        return  f"reel by by {self.profile.user}"
 
     @property
     def like_count(self):
@@ -138,3 +138,6 @@ class Recommendation_Posts(models.Model):
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="recommendation_posts",null=True, blank=True)
     recommendation = models.JSONField()
 
+class Recommendation_Reels(models.Model):
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="recommendation_reels",null=True, blank=True)
+    recommendation = models.JSONField()

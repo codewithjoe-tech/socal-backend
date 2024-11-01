@@ -336,13 +336,15 @@ class PostRecommendationView(APIView):
             posts = Post.objects.filter(id__in=recommended_post_ids).exclude(
             Q(ai_reported=True) |
             Q(id__in=liked_post_ids) 
+             |
+                Q(profile__user__full_name__isnull=True)
             )
+            
             paginator = PostPagination()
             paginated_posts = paginator.paginate_queryset(posts, request)
             serializer = PostSerializer(paginated_posts, many=True, context={'request': request})
             return paginator.get_paginated_response(serializer.data)
         except Exception as e:
-            print(e)
             return Response({"message":"Some Error occured"},status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -383,7 +385,7 @@ class ReelsDetailsView(generics.RetrieveAPIView):
     lookup_field = 'id'
 
 
-class DeletePost(APIView):
+class DeleteReel(APIView):
     def delete(self, request, id):
         reel = Reels.objects.get(id=id)
         if reel.profile.user.id == request.user.id:
@@ -391,3 +393,152 @@ class DeletePost(APIView):
             return Response({"message":"Reel deleted successfully"},status=status.HTTP_200_OK)
         
         return Response({"message":"Unauthorized action"},status=status.HTTP_401_UNAUTHORIZED)
+    
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def like_reel(request , id):
+    reel = Reels.objects.get(id=id)
+    obj , created = ReelLike.objects.get_or_create(reel=reel,profile=request.user.profile)
+    obj.enabled = not obj.enabled
+    obj.save()
+    
+    return Response({'message': ("Likes" if obj.enabled else "Unliked") + " Successfully"}, status=status.HTTP_200_OK)
+
+
+
+class ReelCommentView(APIView):
+    def get(self, request, id):
+        try:
+            selected_comment_id = request.GET.get("selected_comment")
+            reply_status = request.GET.get("reply_status") == "true"
+            
+            current_user = request.user.profile
+            followed_profiles = Follow.objects.filter(follower=current_user, accepted=True).values_list('following', flat=True)
+
+            comments = ReelComment.objects.filter(reel__id=id, parent__isnull=True).annotate(
+                is_followed=Q(profile__in=followed_profiles)
+            ).order_by('-is_followed', '-created_at')
+
+            selected_comment = None
+
+            if selected_comment_id:
+                selected_comment = ReelComment.objects.filter(id=selected_comment_id, reel__id=id).first()
+                if selected_comment:
+                    if reply_status and selected_comment.parent:
+                        selected_comment = selected_comment.parent
+                    comments = comments.exclude(id=selected_comment.id)
+                    comments = [selected_comment] + list(comments)
+            
+            paginator = CommentPagination()
+            paginated_comments = paginator.paginate_queryset(comments, request)
+
+            serializer_context = {'request': request}
+            if reply_status:
+                serializer_context['reply_status'] = reply_status
+                serializer_context['selected_comment_id'] = selected_comment_id
+
+            serializer = ReelCommentSerializer(paginated_comments, many=True, context=serializer_context)
+            return paginator.get_paginated_response(serializer.data)
+
+        except Exception as e:
+            print(e)
+            return Response({"message": "Some error occurred"}, status=status.HTTP_400_BAD_REQUEST)
+
+    def post(self, request, id):
+        try:
+            request.data['reel'] = id
+            request.data['profile'] = request.user.profile.id
+            serializer = ReelCommentSerializer(data=request.data, context={'request': request})
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except:
+            return Response({"message": "Some Error occurred"}, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, id):
+        try:
+            comment = ReelComment.objects.get(id=id)
+            if not comment.profile == request.user.profile:
+                return Response({"message": "You don't have permission to delete this comment"}, status=status.HTTP_403_FORBIDDEN)
+            comment.delete()
+            return Response({"message": "Comment deleted successfully"}, status=status.HTTP_200_OK)
+        except ReelComment.DoesNotExist:
+            return Response({"message": "Comment not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"message": "Some Error occurred"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ReelReplyView(APIView):
+    def get(self, request, id):
+        try:
+            current_user = request.user.profile
+            followed_profiles = Follow.objects.filter(follower=current_user, accepted=True).values_list('following', flat=True)
+            replies = ReelComment.objects.filter(parent__id=id).annotate(
+                is_followed=Q(profile__in=followed_profiles)
+            ).order_by('-is_followed', '-created_at') 
+            paginator = CommentPagination()
+            paginated_replies = paginator.paginate_queryset(replies, request)
+
+            serializer = ReelCommentSerializer(paginated_replies, many=True, context={'request': request})
+            return paginator.get_paginated_response(serializer.data)
+
+        except Exception as e:
+            print(e)
+            return Response({"message": "Some Error occurred"}, status=status.HTTP_400_BAD_REQUEST)
+
+    def post(self, request, id):
+        try:
+            request.data['parent'] = id
+            request.data['profile'] = request.user.profile.id
+            request.data['reel'] = ReelComment.objects.get(id=id).reel.id
+            serializer = ReelCommentSerializer(data=request.data, context={'request': request})
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except:
+            return Response({"message": "Some Error occurred"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ReelReplyToReplyView(APIView):
+    def post(self, request, id):
+        try:
+            reply_parent = ReelComment.objects.get(id=id)
+        except:
+            return Response({"message": "Reply not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+        data = request.data.copy()
+        data['parent'] = reply_parent.parent.id
+        data['reply_parent'] = reply_parent.id
+        data['profile'] = request.user.profile.id
+        data['reel'] = reply_parent.reel.id
+
+        serializer = ReelCommentSerializer(data=data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ReelRecommendationView(APIView):
+    def get(self, request):
+        try:
+            recommendation = Recommendation_Reels.objects.filter(profile=request.user.profile).order_by('-id').first()
+            recommended_reel_ids = recommendation.recommendation.get("recommended_reel_ids", [])
+            liked_reel_ids = ReelLike.objects.filter(profile=request.user.profile, enabled=True).values_list('reel_id', flat=True)
+            reels = Reels.objects.filter(id__in=recommended_reel_ids).exclude(
+                Q(ai_reported=True) |
+                Q(id__in=liked_reel_ids) |
+                Q(profile__user__full_name__isnull=True)
+            )
+            paginator = ReelPagination()
+            paginated_reels = paginator.paginate_queryset(reels, request)
+            serializer = ReelSerializer(paginated_reels, many=True, context={'request': request})
+            return paginator.get_paginated_response(serializer.data)
+        except Exception as e:
+            print(e)
+            return Response({"message": "Some Error occurred"}, status=status.HTTP_400_BAD_REQUEST)

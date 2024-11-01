@@ -29,3 +29,12 @@ class ReportPost(models.Model):
     def get_count(self):
         return ReportPost.objects.filter(content_type=self.content_type,object_id=self.object_id,).count()
         
+
+
+class Notifications(models.Model):
+    user = models.ForeignKey(User,on_delete=models.CASCADE)
+    content_type= models.CharField(max_length=255 , default="")
+    content_id = models.PositiveIntegerField(null=True,blank=True)
+    content = models.TextField()
+    other_user = models.ForeignKey(User,on_delete=models.CASCADE,related_name="other_user",null=True,blank=True)
+    
