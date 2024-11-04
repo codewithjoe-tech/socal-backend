@@ -92,6 +92,7 @@ class Reels(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     ai_reported = models.BooleanField(default=False)
+    thumbnail = models.ImageField(upload_to='user/reels/thumbnails/', null=True, blank=True)
 
     def __str__(self):
         return  f"reel by by {self.profile.user}"
@@ -103,6 +104,9 @@ class Reels(models.Model):
     @property
     def comment_count(self):
         return self.comments.count()
+    
+    class Meta:
+        ordering = ['-thumbnail', '-created_at']
 
 class ReelLike(models.Model):
     reel = models.ForeignKey(Reels, related_name='likes', on_delete=models.CASCADE)

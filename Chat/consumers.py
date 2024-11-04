@@ -413,18 +413,16 @@ class NotifyConsumer(AsyncWebsocketConsumer):
 
 class VideoCallConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        # Extract the username from the URL route and use it to create a unique group for the user
+    
         self.username = self.scope['url_route']['kwargs']['username']
         self.room_group_name = f"video_call_{self.username}"
 
-        # Add the user to their own group, so they can receive signaling messages
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
 
         await self.accept()
         print(f"WebSocket connection accepted for user: {self.username}")
 
     async def disconnect(self, close_code):
-        # Remove the user from the group on disconnect
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
         print(f"WebSocket connection closed for user: {self.username}")
 
@@ -443,7 +441,6 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
             })
         
         elif action == "answer":
-            # Forward the answer to the target user
             target_username = data.get("target_username")
             await self.forward_to_target(target_username, {
                 "type": "ANSWER",
@@ -452,7 +449,6 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
             })
 
         elif action == "ice_candidate":
-            # Forward ICE candidates to the target user
             target_username = data.get("target_username")
             await self.forward_to_target(target_username, {
                 "type": "ICE_CANDIDATE",
@@ -477,3 +473,16 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
     async def send_sdp_message(self, event):
         
         await self.send(text_data=json.dumps(event["message"]))
+
+
+class NotificationConsumer(AsyncWebsocketConsumer):
+    def connect(self):
+        return super().connect()
+    
+    def disconnect(self, code):
+        return super().disconnect(code)
+    
+    def receive(self, text_data=None, bytes_data=None):
+        return super().receive(text_data, bytes_data)
+    
+    

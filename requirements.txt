@@ -68,3 +68,4 @@ faker
 pandas
 scikit-learn
 numpy
+ffmpeg-python

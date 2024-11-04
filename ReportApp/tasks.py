@@ -12,7 +12,7 @@ def report_posts():
 
     reports = ReportPost.objects.filter(content_type=post_contenttype, disabled=False).values_list('object_id', flat=True)
 
-    posts = Post.objects.filter(id__in=reports)
+    posts = Post.objects.filter(id__in=reports,ai_reported=False)
     for post in posts:
         if not post.ai_reported:
             post_path = post.image.path

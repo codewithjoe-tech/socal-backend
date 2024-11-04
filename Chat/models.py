@@ -118,3 +118,18 @@ class ChatRoomDeleted(models.Model):
 
     def __str__(self):
         return f"Deleted chatroom by {self.user.username} - Chatroom {self.chatroom.name or self.chatroom.id}"
+
+
+
+class Notification(models.Model):
+    user  = models.ForeignKey(User,on_delete=models.CASCADE)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content = models.TextField()
+
+    def __str__(self):
+        return f"Notification by {self.user.username} - {self.content[:30]}"
+
+
+
+
