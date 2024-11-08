@@ -209,4 +209,12 @@ class NotificationSerilaizer(serializers.ModelSerializer):
                 "reply" : True if instance.parent else False,
                 'id' :  instance.id
            }
+        elif isinstance(instance, Follow):
+            print(instance.accepted)
+            return {
+                'username':instance.follower.user.username,
+                'profile_picture':BASE_URL+instance.follower.profile_picture.url,
+                "id":instance.id,
+                'accepted':instance.accepted
+            }
 

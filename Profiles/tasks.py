@@ -255,6 +255,17 @@ def create_notification_post_comment(id):
 def create_notification_follow(id):
     follow = Follow.objects.get(id=id)
     contenttype = ContentType.objects.get_for_model(Follow)
-    if follow.follower != follow.following:
-        Notification.objects.create(user=follow.following.user, content_type=contenttype, object_id=id, content=f'{follow.follower.user.username} started following you')
+    if not follow.accepted:
+        Notification.objects.create(user=follow.following.user, content_type=contenttype, object_id=follow.id, content=f'You have a follow request from: {follow.follower}')
+    elif follow.accepted:
+        Notification.objects.create(user=follow.following.user,content_type=contenttype, object_id=follow.id, content=f'You have a new follower {follow.follower}')
+    
     return f'Notification task completed for follow {id}'
+
+
+
+@shared_task
+def delete_notification_follow(id):
+    contenttype = ContentType.objects.get_for_model(Follow)
+    Notification.objects.get(content_type = contenttype , object_id=id).delete()
+    return f"Notification deleted"

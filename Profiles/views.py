@@ -12,7 +12,7 @@ from django.db.models import Count
 from django.utils import timezone
 from datetime import timedelta
 from itertools import chain
-
+from . tasks import delete_notification_follow
 
 class AuthenticatedView(APIView):
     permission_classes = [IsAuthenticated]
@@ -114,6 +114,7 @@ class FollowProfileView(AuthenticatedView):
             return Response({"error": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
         except Exception as e:
+            print(e)
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class PostView(generics.CreateAPIView):
@@ -132,7 +133,7 @@ def get_followers(request, id):
         profile = Profile.objects.get(user__username=id)
 
        
-        followers = Profile.objects.filter(following__following=profile, following__disabled=False , follower__accepted=True).distinct().order_by('-id')
+        followers = Profile.objects.filter(following__following=profile, following__disabled=False , following__accepted=True).distinct().order_by('-id')
 
 
       
@@ -143,6 +144,27 @@ def get_followers(request, id):
     except Profile.DoesNotExist:
         return Response({"message": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def FollowAcceptView(request,id):
+    follow = Follow.objects.get(id=id)
+    if request.user.profile == follow.following:
+        follow.accepted=True
+        follow.save()
+        delete_notification_follow.delay(id)
+        return Response({'message':True},status=status.HTTP_200_OK)
+    return Response({'message':False},status=status.HTTP_401_UNAUTHORIZED)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def FollowDisableView(request, id):
+    follow = Follow.objects.get(id=id)
+    if request.user.profile == follow.following:
+        follow.disabled=True
+        follow.save()
+        delete_notification_follow(id)
+        return Response({'message':True},status=status.HTTP_200_OK)
+    return Response({'message':False},status=status.HTTP_401_UNAUTHORIZED)
 
 
 @api_view(['GET'])

@@ -82,4 +82,7 @@ def create_notification_for_post_comment(sender,instance, created, **kwargs):
 @receiver(post_save , sender=Follow)
 def follow_notification(sender, instance , created , **kwargs):
     if not instance.disabled:
-        pass
+        create_notification_follow.delay(instance.id)
+
+    else:
+        delete_notification_follow(instance.id)
