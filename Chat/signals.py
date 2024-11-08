@@ -21,6 +21,6 @@ def send_asyn_notification(sender, instance , created, **kwargs):
             group_name,
             {
                 'type':'send_notification',
-                'data':json.dumps(serialized_data)
+                'data':serialized_data
             }
         )
