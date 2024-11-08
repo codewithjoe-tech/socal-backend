@@ -1,4 +1,5 @@
-from Profiles.models import Reels, ReelLike , Profile
+
+from Profiles.models import Reels, ReelLike, Profile
 import numpy as np
 from sklearn.decomposition import TruncatedSVD
 
@@ -13,7 +14,7 @@ def data_preprocessing_reel():
         user_idx = profile_index[like.profile.id]
         reel_idx = reel_index[like.reel.id]
         user_reel_matrix[user_idx, reel_idx] = 1
-
+        
     return profile_index, reel_index, user_reel_matrix
 
 def factorize_reel_matrix(user_reel_matrix):

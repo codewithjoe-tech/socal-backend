@@ -44,7 +44,37 @@ INSTALLED_APPS = [
     'ReportApp',
     "Chat"
 
+
 ]
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'Profiles': {  
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 7000
+
 CSRF_TRUSTED_ORIGINS = ['http://localhost:5173']
 DATASET_DIR = os.path.join(BASE_DIR, 'data')
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')

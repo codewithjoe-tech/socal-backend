@@ -66,6 +66,8 @@ class GoogleLogin(PublicApi):
             'access_type':'offline',
             "prompt":"select_account"
         }
+        print(redirect_uri)
+        print(google_client_id)
         url = f"https://accounts.google.com/o/oauth2/v2/auth?{urllib.parse.urlencode(params)}"
         return redirect(url)
 
@@ -76,6 +78,7 @@ class GoogleCallback(PublicApi):
         state = request.data.get('state')
         error = request.data.get('error')
         request.session.pop('oauth_token',None)
+        print(error)
         if error or not state :
             return Response({'error': 'Authentication failed!'}, status=status.HTTP_400_BAD_REQUEST)
         token_url = "https://oauth2.googleapis.com/token"

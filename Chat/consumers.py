@@ -413,18 +413,21 @@ class NotifyConsumer(AsyncWebsocketConsumer):
 
 class VideoCallConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-    
         self.username = self.scope['url_route']['kwargs']['username']
         self.room_group_name = f"video_call_{self.username}"
-
+        self.target_username = None  
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
-
         await self.accept()
         print(f"WebSocket connection accepted for user: {self.username}")
 
     async def disconnect(self, close_code):
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
-        print(f"WebSocket connection closed for user: {self.username}")
+
+        if self.target_username:
+            await self.forward_to_target(self.target_username, {
+                "type": "END_CALL",
+                "from": self.username,
+            })
 
     async def receive(self, text_data):
         data = json.loads(text_data)
@@ -432,17 +435,16 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
         print(data)
 
         if action == "offer":
-            
-            target_username = data.get("target_username")
-            await self.forward_to_target(target_username, {
+            self.target_username = data.get("target_username")  
+            await self.forward_to_target(self.target_username, {
                 "type": "OFFER",
                 "offer": data["offer"],
                 "from": self.username,
             })
         
         elif action == "answer":
-            target_username = data.get("target_username")
-            await self.forward_to_target(target_username, {
+            self.target_username = data.get("target_username")  
+            await self.forward_to_target(self.target_username, {
                 "type": "ANSWER",
                 "answer": data["answer"],
                 "from": self.username,
@@ -471,8 +473,8 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
         })
 
     async def send_sdp_message(self, event):
-        
         await self.send(text_data=json.dumps(event["message"]))
+
 
 
 class NotificationConsumer(AsyncWebsocketConsumer):

@@ -10,7 +10,7 @@ class Command(BaseCommand):
     help = 'Generate reels from videos in Reel Data folder'
 
     def handle(self, *args, **options):
-        video_folder = os.path.join(settings.BASE_DIR, 'Reel Data')  
+        video_folder = os.path.join(settings.BASE_DIR, 'Reel Videos')  
         profiles = Profile.objects.all()
 
         if os.path.exists(video_folder):

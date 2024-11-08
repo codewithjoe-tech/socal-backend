@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from . models import *
-from Profiles.models import Profile
+from Profiles.models import *
 from rest_framework import serializers
 from django.contrib.contenttypes.models import ContentType
 
@@ -139,4 +139,74 @@ class MessageSerializer(serializers.ModelSerializer):
             return '/user.png'  
 
 
+
+
+
+class NotificationSerilaizer(serializers.ModelSerializer):
+    content_object = serializers.SerializerMethodField()
+    content_type = serializers.CharField(source ="content_type.model",read_only=True)
+    class Meta:
+        model = Notification
+        fields= ['user', 'content_type', 'object_id', 'content', 'content_object']
+
+    def get_content_object(self,obj):
+        content_type = obj.content_type
+        model_class = content_type.model_class()
+        instance = model_class.objects.get(pk=obj.object_id)
+
+        if isinstance(instance , Reels):
+            return {
+                'username':instance.profile.user.username,
+                "profile_picture": BASE_URL + instance.profile.profile_picture.url,
+                "ReelId" : instance.id,
+                "thumbnail" : BASE_URL + instance.thumbnail.url
+                
+            }
+        elif isinstance(instance , ReelLike):
+            
+            return {
+                'username':instance.profile.user.username,
+                "profile_picture": BASE_URL + instance.profile.profile_picture.url,
+                "ReelId" : instance.reel.id,
+                "thumbnail" : BASE_URL + instance.reel.thumbnail.url
+            }
+        
+        elif isinstance(instance , ReelComment):
+            return {
+                "username" : instance.profile.user.username,
+                "profile_picture": BASE_URL + instance.profile.profile_picture.url,
+                "ReelId" : instance.reel.id,
+                "thumbnail" : BASE_URL + instance.reel.thumbnail.url,
+                "reply" : True if instance.parent else False,
+                'id' :  instance.id
+
+            }
+        
+        # Post
+        elif isinstance(instance,Post):
+            return {
+                'username':instance.profile.user.username,
+                "profile_picture": BASE_URL + instance.profile.profile_picture.url,
+                "postId" : instance.id,
+                "image" : BASE_URL + instance.image.url
+                
+            }
+        elif isinstance(instance , Like):
+            
+            return {
+                'username':instance.profile.user.username,
+                "profile_picture": BASE_URL + instance.profile.profile_picture.url,
+                "postId" : instance.post.id,
+                "image" : BASE_URL + instance.post.image.url
+            }
+        
+        elif isinstance(instance , Comment):
+            return {
+                "username" : instance.profile.user.username,
+                "profile_picture": BASE_URL + instance.profile.profile_picture.url,
+                "postId" : instance.post.id,
+                "image" : BASE_URL + instance.post.image.url,
+                "reply" : True if instance.parent else False,
+                'id' :  instance.id
+           }
 

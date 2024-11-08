@@ -133,3 +133,16 @@ class GetMessages(APIView):
 
         message_serializer = MessageSerializer(message)
         return Response(message_serializer.data, status=status.HTTP_201_CREATED)
+
+
+
+class GetNotifications(APIView):
+    def get(self,request):
+        try:
+            notifications = Notification.objects.filter(user=request.user).order_by("-id")
+            serializer = NotificationSerilaizer(notifications,many=True)
+            return Response(serializer.data,status=status.HTTP_200_OK)
+        except Exception as e:
+            print(e)
+            return Response({'message' : str(e)},status=status.HTTP_400_BAD_REQUEST)
+        

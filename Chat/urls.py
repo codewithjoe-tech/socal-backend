@@ -8,4 +8,5 @@ urlpatterns = [
     path('chatroom-list/', ChatRoomList.as_view()),
     path('get-messages/',GetMessages.as_view()),
     path('get-messages/<chatroom>',GetMessages.as_view()),
+    path('get-notification',GetNotifications.as_view())
 ]

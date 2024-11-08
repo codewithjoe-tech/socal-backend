@@ -6,46 +6,46 @@ from django.utils import timesince
 
 
 
-
 class ProfileSerializer(serializers.ModelSerializer):
     user = UserModelSerializer(read_only=True)
     is_following = serializers.SerializerMethodField(read_only=True)
     followers_count = serializers.SerializerMethodField(read_only=True)
     following_count = serializers.SerializerMethodField(read_only=True)
- 
     posts_count = serializers.SerializerMethodField(read_only=True)
+ 
     class Meta:
         model = Profile
         fields = "__all__"
 
     def get_is_following(self, obj):
         request = self.context.get('request')
-       
-        if request :
+        if request:
             try:
-               
                 current_user_profile = Profile.objects.get(user=request.user)
-                follow = Follow.objects.filter(follower=current_user_profile, following=obj, disabled=False).first()
-                return follow is not None
+                follow = Follow.objects.filter(follower=current_user_profile, following=obj).first()
+
+                if follow:
+                    if follow.disabled:
+                        return 'n' 
+                    return 'f' if follow.accepted else 'r'
+                else:
+                    return 'n' 
             except Profile.DoesNotExist:
-                return False
+                return 'n'  
+        return 'n' 
+
+    def get_followers_count(self, obj):
+        follow = Follow.objects.filter(following=obj, disabled=False,accepted=True).count()
         
-        return False
-    def get_followers_count(self,obj):
-        follow = Follow.objects.filter(following=obj,disabled=False).count()
         return follow
     
-    def get_following_count(self,obj):
-        follow = Follow.objects.filter(follower=obj,disabled=False).count()
+    def get_following_count(self, obj):
+        follow = Follow.objects.filter(follower=obj, disabled=False ,accepted=True).count()
         return follow
 
-
-    
     def get_posts_count(self, obj):
         posts = Post.objects.filter(profile=obj).count()
         return posts
-    
-
 
 
 class PostSerializer(serializers.ModelSerializer):

@@ -6,8 +6,12 @@ from . serializers import *
 from rest_framework import status
 from rest_framework import generics
 from rest_framework.views import APIView
-from django.db.models import Q,Case, When, Value, BooleanField
+from django.db.models import Q
 from .pagination import *
+from django.db.models import Count
+from django.utils import timezone
+from datetime import timedelta
+from itertools import chain
 
 
 class AuthenticatedView(APIView):
@@ -83,13 +87,26 @@ class FollowProfileView(AuthenticatedView):
                 following=user_profile
             )
             
-            if not created:
-                follow.disabled = not follow.disabled
-                follow.save()
+            if created:
+                follow.accepted = not user_profile.isPrivate
+            else:
+                if follow.disabled:
+                    follow.disabled = False
+                    follow.accepted = not user_profile.isPrivate
+                else:
+                    follow.disabled = True
+                    follow.accepted = False  
 
-            follow_status = 'Unfollowed' if follow.disabled else 'Followed'
+            follow.save()
+
+            follow_status_text = 'Unfollowed' if follow.disabled else ('Requested to' if not follow.accepted else 'Followed')
+            follow_status_code = 'n' if follow.disabled else ('r' if not follow.accepted else 'f')
+            
             return Response(
-                {"message": f"You have {follow_status} {user_profile.user.username}!"},
+                {
+                    "message": f"You have {follow_status_text} {user_profile.user.username}!",
+                    "follow_status": follow_status_code
+                },
                 status=status.HTTP_200_OK
             )
 
@@ -98,7 +115,6 @@ class FollowProfileView(AuthenticatedView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
 
 class PostView(generics.CreateAPIView):
     serializer_class = PostSerializer
@@ -116,7 +132,7 @@ def get_followers(request, id):
         profile = Profile.objects.get(user__username=id)
 
        
-        followers = Profile.objects.filter(following__following=profile, following__disabled=False).distinct().order_by('-id')
+        followers = Profile.objects.filter(following__following=profile, following__disabled=False , follower__accepted=True).distinct().order_by('-id')
 
 
       
@@ -138,7 +154,7 @@ def get_following(request, id):
         profile = Profile.objects.get(user__username=id)
         
        
-        following = Profile.objects.filter(followers__follower=profile, followers__disabled=False).distinct().order_by('-id')
+        following = Profile.objects.filter(followers__follower=profile, followers__disabled=False,followers__accepted=True, ).distinct().order_by('-id')
 
 
       
@@ -327,32 +343,57 @@ class ReplyToReplyView(APIView):
         return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
     
 
+
+
+
+
 class PostRecommendationView(APIView):
     def get(self, request):
         try:
-            recommendation = Recommendation_Posts.objects.filter(profile=request.user.profile).order_by('-id').first()
-            recommended_post_ids = recommendation.recommendation.get("recommended_post_ids", [])
-            liked_post_ids = Like.objects.filter(profile=request.user.profile, enabled=True).values_list('post_id', flat=True)
-            posts = Post.objects.filter(id__in=recommended_post_ids).exclude(
-            Q(ai_reported=True) |
-            Q(id__in=liked_post_ids) 
-             |
+            profile = request.user.profile
+            recommendation = Recommendation_Posts.objects.filter(profile=profile).order_by('-id').first()
+            liked_post_ids = Like.objects.filter(profile=profile, enabled=True).values_list('post_id', flat=True)
+            
+            following_ids = profile.following.filter(accepted=True).values_list('following_id', flat=True)
+            time_threshold = timezone.now() - timedelta(days=1)
+            
+            recent_posts_from_following = Post.objects.filter(
+                profile__id__in=following_ids,
+                created_at__gte=time_threshold
+            ).exclude(
+                Q(ai_reported=True) |
+                Q(id__in=liked_post_ids) |
                 Q(profile__user__full_name__isnull=True)
-            )
+            ).annotate(likes_count=Count('likes')).order_by('-created_at', '-likes_count')
+            
+            recommended_posts = []
+            if recommendation:
+                recommended_post_ids = recommendation.recommendation.get("recommended_post_ids", [])
+                recommended_posts = Post.objects.filter(id__in=recommended_post_ids).exclude(
+                    Q(ai_reported=True) |
+                    Q(id__in=liked_post_ids) |
+                    Q(profile__user__full_name__isnull=True)
+                ).annotate(likes_count=Count('likes')).order_by('-likes_count')
+
+            if not following_ids or not recent_posts_from_following:
+                trending_posts = Post.objects.exclude(
+                    Q(ai_reported=True) |
+                    Q(id__in=liked_post_ids) |
+                    Q(profile__user__full_name__isnull=True)
+                ).annotate(likes_count=Count('likes')).order_by('-likes_count')[:50]  
+
+                posts = list(chain(recent_posts_from_following, recommended_posts, trending_posts))
+            else:
+                posts = list(chain(recent_posts_from_following, recommended_posts))
             
             paginator = PostPagination()
             paginated_posts = paginator.paginate_queryset(posts, request)
             serializer = PostSerializer(paginated_posts, many=True, context={'request': request})
             return paginator.get_paginated_response(serializer.data)
+
         except Exception as e:
-            return Response({"message":"Some Error occured"},status=status.HTTP_400_BAD_REQUEST)
-
-
-
-
-
-
-
+            print(e)
+            return Response({"message": "Some Error occurred"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -528,17 +569,27 @@ class ReelRecommendationView(APIView):
     def get(self, request):
         try:
             recommendation = Recommendation_Reels.objects.filter(profile=request.user.profile).order_by('-id').first()
-            recommended_reel_ids = recommendation.recommendation.get("recommended_reel_ids", [])
             liked_reel_ids = ReelLike.objects.filter(profile=request.user.profile, enabled=True).values_list('reel_id', flat=True)
-            reels = Reels.objects.filter(id__in=recommended_reel_ids).exclude(
-                Q(ai_reported=True) |
-                Q(id__in=liked_reel_ids) |
-                Q(profile__user__full_name__isnull=True)
-            )
+
+            if recommendation and recommendation.recommendation.get("recommended_reel_ids"):
+                recommended_reel_ids = recommendation.recommendation.get("recommended_reel_ids", [])
+                reels = Reels.objects.filter(id__in=recommended_reel_ids).exclude(
+                    Q(ai_reported=True) |
+                    Q(id__in=liked_reel_ids) |
+                    Q(profile__user__full_name__isnull=True)
+                ).annotate(likes_count=Count('likes')).order_by('-likes_count')
+            else:
+                reels = Reels.objects.exclude(
+                    Q(ai_reported=True) |
+                    Q(id__in=liked_reel_ids) |
+                    Q(profile__user__full_name__isnull=True)
+                ).annotate(likes_count=Count('likes')).order_by('-likes_count')
+
             paginator = ReelPagination()
             paginated_reels = paginator.paginate_queryset(reels, request)
             serializer = ReelSerializer(paginated_reels, many=True, context={'request': request})
             return paginator.get_paginated_response(serializer.data)
+
         except Exception as e:
             print(e)
             return Response({"message": "Some Error occurred"}, status=status.HTTP_400_BAD_REQUEST)

@@ -126,9 +126,10 @@ class Notification(models.Model):
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
     content = models.TextField()
+    created_at = models.DateTimeField(null=True,blank=True,auto_now_add=True)
 
     def __str__(self):
-        return f"Notification by {self.user.username} - {self.content[:30]}"
+        return f"Notification for {self.user.username} - {self.content[:30]}"
 
 
 
