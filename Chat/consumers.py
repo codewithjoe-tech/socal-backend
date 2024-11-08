@@ -476,15 +476,38 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps(event["message"]))
 
 
-
 class NotificationConsumer(AsyncWebsocketConsumer):
-    def connect(self):
-        return super().connect()
+    async def connect(self):
+        self.username = self.scope['url_route']['kwargs']['username']
+        self.room_group_name = f"notification_{self.username}"
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+        await self.accept()
+        
+    async def disconnect(self, code):
+        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
     
-    def disconnect(self, code):
-        return super().disconnect(code)
-    
-    def receive(self, text_data=None, bytes_data=None):
-        return super().receive(text_data, bytes_data)
-    
-    
+    async def receive(self, text_data=None, bytes_data=None):
+        data = json.loads(text_data)
+        notification_id = data['id']
+        notification_obj = await self.get_notification(notification_id)
+        serialized_data = await self.serialize_notification(notification_obj)
+
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'send_notification',
+                'data': serialized_data
+            }
+        )
+
+    async def send_notification(self, event):
+        data = event['data']
+        await self.send(text_data=json.dumps(data))
+
+    @database_sync_to_async
+    def get_notification(self, id):
+        return Notification.objects.get(id=id)
+
+    @database_sync_to_async
+    def serialize_notification(self, obj):
+        return NotificationSerializer(obj).data
