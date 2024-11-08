@@ -14,6 +14,7 @@ import logging
 from django.contrib.auth import get_user_model
 from Chat.models import Notification
 
+
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
@@ -267,5 +268,15 @@ def create_notification_follow(id):
 @shared_task
 def delete_notification_follow(id):
     contenttype = ContentType.objects.get_for_model(Follow)
-    Notification.objects.get(content_type = contenttype , object_id=id).delete()
+    Notification.objects.filter(content_type = contenttype , object_id=id).delete()
     return f"Notification deleted"
+
+
+
+@shared_task
+def create_notification_accepting_req(id):
+    follow = Follow.objects.get(id=id)
+    contenttype = ContentType.objects.get_for_model(Follow)
+    if follow.accepted:
+        Notification.objects.create(user=follow.follower.user, content_type=contenttype, object_id=follow.id, content=f'Your follow request has been accepted by : {follow.following}')
+    return "Follow request accpeted"

@@ -42,7 +42,7 @@ urlpatterns = [
 
     path('recommend/reels/', ReelRecommendationView.as_view()),
 
-    path('follow-accept/<id>', FollowAcceptView),
-    path('follow-reject/<id>', FollowDisableView),
+    path('follow-accept/<id>/<nid>', FollowAcceptView),
+    path('follow-reject/<id>/<nid>', FollowDisableView),
 
 ]

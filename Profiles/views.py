@@ -12,7 +12,8 @@ from django.db.models import Count
 from django.utils import timezone
 from datetime import timedelta
 from itertools import chain
-from . tasks import delete_notification_follow
+from Chat.models import Notification
+from . tasks import create_notification_accepting_req
 
 class AuthenticatedView(APIView):
     permission_classes = [IsAuthenticated]
@@ -146,23 +147,25 @@ def get_followers(request, id):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def FollowAcceptView(request,id):
+def FollowAcceptView(request,id,nid):
     follow = Follow.objects.get(id=id)
     if request.user.profile == follow.following:
         follow.accepted=True
         follow.save()
-        delete_notification_follow.delay(id)
+        create_notification_accepting_req.delay(id)
+        # Notification.objects.get(id=nid).delete()
         return Response({'message':True},status=status.HTTP_200_OK)
     return Response({'message':False},status=status.HTTP_401_UNAUTHORIZED)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def FollowDisableView(request, id):
+def FollowDisableView(request, id,nid):
     follow = Follow.objects.get(id=id)
     if request.user.profile == follow.following:
         follow.disabled=True
         follow.save()
-        delete_notification_follow(id)
+        # Notification.objects.get(id=nid).delete()
+        
         return Response({'message':True},status=status.HTTP_200_OK)
     return Response({'message':False},status=status.HTTP_401_UNAUTHORIZED)
 

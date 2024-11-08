@@ -86,3 +86,6 @@ def follow_notification(sender, instance , created , **kwargs):
 
     else:
         delete_notification_follow(instance.id)
+    
+    if instance.accepted:
+        delete_notification_follow(instance.id)

@@ -147,7 +147,7 @@ class NotificationSerilaizer(serializers.ModelSerializer):
     content_type = serializers.CharField(source ="content_type.model",read_only=True)
     class Meta:
         model = Notification
-        fields= ['user', 'content_type', 'object_id', 'content', 'content_object']
+        fields= ['user', 'content_type', 'object_id', 'content', 'content_object','created_at', 'id']
 
     def get_content_object(self,obj):
         content_type = obj.content_type
