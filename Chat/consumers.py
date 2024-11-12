@@ -12,11 +12,10 @@ from asgiref.sync import sync_to_async
 User = get_user_model()
 
 
-BASE_URL = "http://127.0.0.1:8000"
+
 def build_absolute_uri(path):
-    protocol = 'https' if settings.USE_HTTPS else 'http'
-    domain = get_current_site(None).domain 
-    return f"{protocol}://{domain}{path}"
+   
+    return f""
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -26,6 +25,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.chatroom_group_name = f"chat_{self.chatroom_name.replace('=', '')}"
         chatroom = await self.get_chatroom(self.chatroom_name)
 
+        # Check if the user is in the chatroom
         if not await self.is_user_in_chatroom(chatroom, self.user):
             await self.close()
         else:
@@ -42,7 +42,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def receive(self, text_data):
-        
         data = json.loads(text_data)
         message_type = data.get('message_type')
         content_type = data.get('content_type')
@@ -53,14 +52,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if not await self.is_user_in_chatroom(chatroom, self.user):
             return
 
+        # Handle different message types
         if message_type == "file":
-            
-            await self.receive_file( content_data)
+            await self.receive_file(content_data)
+        elif message_type == 'delete':
+            await self.delete_message(content_data)
+            await self.delete_message_send(content_data)  # Send deletion to all users
         else:
-          
             await self.handle_text_message(content_type, content_data, chatroom)
 
-    async def receive_file(self,  content_data):
+    async def receive_file(self, content_data):
         message = await self.get_message_by_id(content_data)
         message_data = await self.serialize_message(message)
         await self.channel_layer.group_send(
@@ -71,13 +72,37 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
         )
 
-    async def handle_text_message(self, content_type, content_data, chatroom):
-    
-        content_object = await self.handle_content_creation(content_type, content_data)
+    async def delete_message_send(self, message_id):
+        """Send the delete event to the WebSocket group."""
+        await self.channel_layer.group_send(
+            self.chatroom_group_name,
+            {
+                'type': 'delete_message_event',
+                'message_id': message_id
+            }
+        )
 
+    async def delete_message_event(self, event):
+        """Send delete event to WebSocket clients."""
+        message_id = event['message_id']
+        await self.send(text_data=json.dumps({
+            'type': 'delete_message',
+            'message_id': message_id
+        }))
+
+    @database_sync_to_async
+    def delete_message(self, message_id):
+        """Delete message from the database."""
+        try:
+            message = Message.objects.get(id=message_id)
+            message.delete()
+        except Message.DoesNotExist:
+            pass
+
+    async def handle_text_message(self, content_type, content_data, chatroom):
+        content_object = await self.handle_content_creation(content_type, content_data)
         if content_object:
             content_type_obj = await self.get_content_type_for_model(content_object)
-
             message = await self.create_message(
                 chatroom=chatroom,
                 sender=self.user,
@@ -86,7 +111,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
 
             message_data = await self.serialize_message(message)
-
             await self.channel_layer.group_send(
                 self.chatroom_group_name,
                 {
@@ -96,54 +120,43 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
 
     async def chat_message(self, event):
-       
+        """Send chat message to WebSocket."""
         message = event['message']
         await self.send(text_data=json.dumps(message))
 
     @database_sync_to_async
     def get_chatroom(self, chatroom_name):
-        
         return Chatroom.objects.get(name=chatroom_name)
 
     @database_sync_to_async
     def is_user_in_chatroom(self, chatroom, user):
-     
         return chatroom.chatroom_users.filter(user=user).exists()
 
     @database_sync_to_async
     def create_message(self, chatroom, sender, content_type, object_id):
         chatroom_user = ChatroomUser.objects.filter(chatroom=chatroom).exclude(user=sender).first()
-        online_status = chatroom_user.in_chat
-        message =  Message.objects.create(
+        online_status = chatroom_user.in_chat if chatroom_user else False
+        return Message.objects.create(
             chatroom=chatroom,
             sender=sender,
             content_type=content_type,
             object_id=object_id,
             seen=online_status
         )
-        return message
-        
 
     @database_sync_to_async
     def save_content(self, serializer):
-        
         return serializer.save()
-
-  
 
     @database_sync_to_async
     def serialize_message(self, message):
-        
-        
         return MessageSerializer(message).data
 
     @database_sync_to_async
     def get_content_type_for_model(self, content_object):
-        
         return ContentType.objects.get_for_model(content_object)
 
     async def handle_content_creation(self, content_type, content_data):
-    
         serializers = {
             'textmessage': TextMessageSerializer,
             'imagemessage': ImageMessageSerializer,
@@ -152,24 +165,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
         }
 
         serializer_class = serializers.get(content_type)
-
         if serializer_class:
             serializer = serializer_class(data=content_data)
             if serializer.is_valid():
                 return await self.save_content(serializer)
         return None
-    
 
     @database_sync_to_async
     def get_message_by_id(self, message_id):
         chatroom = Chatroom.objects.get(name=self.chatroom_name)
         message = Message.objects.get(id=message_id)
         chatroom_user = ChatroomUser.objects.filter(chatroom=chatroom).exclude(user=self.user).first()
-        if chatroom_user.in_chat:
-            message.seen=True
+        if chatroom_user and chatroom_user.in_chat:
+            message.seen = True
             message.save()
         return message
-
 
 
 
@@ -384,7 +394,7 @@ class NotifyConsumer(AsyncWebsocketConsumer):
     @sync_to_async
     def get_profile_picture(self, user):
         if hasattr(user, 'profile') and user.profile.profile_picture:
-            return f"{BASE_URL}{user.profile.profile_picture.url}"
+            return f"{user.profile.profile_picture.url}"
         return "/user.png"
     
 
@@ -491,6 +501,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         notification_id = data['id']
         notification_obj = await self.get_notification(notification_id)
         serialized_data = await self.serialize_notification(notification_obj)
+        
 
         await self.channel_layer.group_send(
             self.room_group_name,
@@ -502,6 +513,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
     async def send_notification(self, event):
         data = event['data']
+      
         await self.send(text_data=json.dumps(data))
 
     @database_sync_to_async
@@ -510,4 +522,24 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def serialize_notification(self, obj):
-        return NotificationSerializer(obj).data
+        return NotificationSerilaizer(obj).data
+    
+
+
+
+class ChatListConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        self.username = self.scope['url_route']['kwargs']['username']
+        self.room_group_name = f"chatlist_{self.username}"
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, code):
+        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+    async def send_chat_list(self, event):
+        data = event['data']
+        print("send_chat_list event triggered with data:", data)  # Debug message
+        await self.send(text_data=json.dumps({
+            'type': 'chat_list',
+            'data': data
+        }))

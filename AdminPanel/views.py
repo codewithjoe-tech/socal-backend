@@ -8,7 +8,7 @@ from .utils import send_email
 from ReportApp.models import ReportPost
 from ReportApp.serializers import ReportPostSerializer
 from django.contrib.contenttypes.models import ContentType
-from Profiles.models import Post,Comment,Profile
+from Profiles.models import Post,Comment,Profile, Reels, ReelComment
 from . serializers import ReportSerializer
 
 
@@ -70,7 +70,9 @@ class Reported(PublicApi):
             model_map = {
                 "post": Post,
                 "comment": Comment,
-                "profile": Profile
+                "profile": Profile,
+                "reel": Reels,
+                "reelcomment": ReelComment
             }
             
             model_class = model_map.get(type.lower())
@@ -80,7 +82,7 @@ class Reported(PublicApi):
 
             content_type = ContentType.objects.get_for_model(model_class)
             
-            reports = ReportPost.objects.filter(content_type=content_type,disabled=False).values_list('object_id', flat=True)
+            reports = ReportPost.objects.filter(content_type=content_type, disabled=False).values_list('object_id', flat=True)
 
             if type.lower() == "post":
                 posts = Post.objects.filter(id__in=reports)
@@ -94,42 +96,49 @@ class Reported(PublicApi):
                 profiles = Profile.objects.filter(id__in=reports)
                 serializer = ProfileSerializer(profiles, many=True)
                 return Response(serializer.data, status=status.HTTP_200_OK)
+            elif type.lower() == "reel":
+                reels = Reels.objects.filter(id__in=reports)
+                serializer = ReelsSerializer(reels, many=True)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            elif type.lower() == "reelcomment":
+                reel_comments = ReelComment.objects.filter(id__in=reports)
+                serializer = ReelCommentSerializer(reel_comments, many=True)
+                return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
-    def delete(self,request, id):
+    def delete(self, request, id):
         select_value = request.GET.get('selected_value')
         try:
-
-            content_type = None
-            if select_value == "post":
-                content_type = ContentType.objects.get_for_model(Post)
-            elif select_value == "comment":
-                content_type = ContentType.objects.get_for_model(Comment)
-            elif select_value == "profile":
-                content_type = ContentType.objects.get_for_model(Profile)
-
+            model_map = {
+                "post": Post,
+                "comment": Comment,
+                "profile": Profile,
+                "reel": Reels,
+                "reelcomment": ReelComment
+            }
             
-            print(content_type)
+            model_class = model_map.get(select_value.lower())
+            
+            if model_class is None:
+                return Response({"error": f"Invalid type '{select_value}' provided"}, status=status.HTTP_400_BAD_REQUEST)
 
+            content_type = ContentType.objects.get_for_model(model_class)
             report = ReportPost.objects.filter(content_type=content_type, object_id=id, disabled=False)
-            print(report)
+
             if report.exists():
                 report.update(disabled=True)
                 return Response({"message": "Reports successfully disabled"}, status=status.HTTP_200_OK)
             else:
                 return Response({"error": "No active reports found"}, status=status.HTTP_404_NOT_FOUND)
 
-
         except ReportPost.DoesNotExist:
             return Response({"error": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            print(e)
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        
 
 class ReportedReason(PublicApi):
     def get(self,request,id):

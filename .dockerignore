@@ -1,4 +1,16 @@
-myenv
+# Ignore the virtual environment
+myenv/
+
+# Ignore media files (user uploads)
 media/
-Reel Videos/
+
+# Ignore large data files
 data/
+
+# Ignore video files
+Reel Videos/
+
+
+# Optionally, ignore other large or unnecessary files
+test.py
+

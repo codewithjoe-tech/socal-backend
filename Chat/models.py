@@ -115,6 +115,7 @@ class ChatRoomDeleted(models.Model):
     user = models.ForeignKey(User, blank=True, null=True, on_delete=models.SET_NULL)
     chatroom = models.ForeignKey(Chatroom, blank=True, null=True, on_delete=models.SET_NULL)
     disabled = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now=True,null=True,blank=True)
 
     def __str__(self):
         return f"Deleted chatroom by {self.user.username} - Chatroom {self.chatroom.name or self.chatroom.id}"

@@ -69,3 +69,5 @@ pandas
 scikit-learn
 numpy
 ffmpeg-python
+django-storages
+boto3

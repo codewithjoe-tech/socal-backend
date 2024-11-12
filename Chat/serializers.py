@@ -5,19 +5,21 @@ from rest_framework import serializers
 from django.contrib.contenttypes.models import ContentType
 
 
-BASE_URL = "http://127.0.0.1:8000"
+
+
 class ChatRoomSerializer(serializers.ModelSerializer):
     has_unread = serializers.SerializerMethodField(read_only=True)
     other_user = serializers.SerializerMethodField(read_only=True)
     last_message = serializers.SerializerMethodField(read_only=True)
     class Meta:
         model = Chatroom
-        fields = ["name","has_unread","other_user","last_message"]
+        fields = ["name","has_unread","other_user","last_message","id"]
 
 
     def get_has_unread(self, obj):
         request = self.context.get('request')
         current_user = request.user
+      
         messages = Message.objects.filter(chatroom=obj,seen=False).exclude(sender=current_user).count()
         return messages
     
@@ -34,7 +36,7 @@ class ChatRoomSerializer(serializers.ModelSerializer):
         }
 
         if profile.profile_picture:
-           data[ "profile_picture"]=  BASE_URL + profile.profile_picture.url 
+           data[ "profile_picture"]=   profile.profile_picture.url 
         else :
             data["profile_picture"]= "/user.png"
 
@@ -74,7 +76,7 @@ class ImageMessageSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
-        representation['image'] = f"{BASE_URL}{instance.image.url}"  
+        representation['image'] = f"{instance.image.url}"  
         return representation
 
 
@@ -85,7 +87,7 @@ class VideoMessageSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
-        representation['video'] = f"{BASE_URL}{instance.video.url}"  
+        representation['video'] = f"{instance.video.url}"  
         return representation
 
 
@@ -96,7 +98,7 @@ class AudioMessageSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
-        representation['audio'] = f"{BASE_URL}{instance.audio.url}"  
+        representation['audio'] = f"{instance.audio.url}"  
         return representation
 
 
@@ -134,7 +136,7 @@ class MessageSerializer(serializers.ModelSerializer):
     def get_profile_picture(self, obj):
         if obj.sender.profile.profile_picture:
             
-            return f"{BASE_URL}{obj.sender.profile.profile_picture.url}"
+            return f"{obj.sender.profile.profile_picture.url}"
         else:
             return '/user.png'  
 
@@ -152,69 +154,64 @@ class NotificationSerilaizer(serializers.ModelSerializer):
     def get_content_object(self,obj):
         content_type = obj.content_type
         model_class = content_type.model_class()
-        instance = model_class.objects.get(pk=obj.object_id)
-
-        if isinstance(instance , Reels):
+        try:
+        # Attempt to get the related object instance
+            instance = model_class.objects.get(pk=obj.object_id)
+        except model_class.DoesNotExist:
+            # If the related object doesn't exist, return None or a custom response
+            return None  # or {'error': 'Original content has been deleted'}
+        
+        if isinstance(instance, Reels):
             return {
-                'username':instance.profile.user.username,
-                "profile_picture": BASE_URL + instance.profile.profile_picture.url,
-                "ReelId" : instance.id,
-                "thumbnail" : BASE_URL + instance.thumbnail.url
-                
+                'username': instance.profile.user.username,
+                "profile_picture":  instance.profile.profile_picture.url if instance.profile.profile_picture else None,
+                "ReelId": instance.id,
+                "thumbnail":  instance.thumbnail.url
             }
-        elif isinstance(instance , ReelLike):
+        elif isinstance(instance, ReelLike):
+            return {
+                'username': instance.profile.user.username,
+                "profile_picture":  instance.profile.profile_picture.url if instance.profile.profile_picture else None,
+                "ReelId": instance.reel.id,
+                "thumbnail":  instance.reel.thumbnail.url
+            }
+        elif isinstance(instance, ReelComment):
+            return {
+                "username": instance.profile.user.username,
+                "profile_picture":  instance.profile.profile_picture.url if instance.profile.profile_picture else None,
+                "ReelId": instance.reel.id,
+                "thumbnail":  instance.reel.thumbnail.url,
+                "reply": True if instance.parent else False,
+                'id': instance.id
+            }
+        elif isinstance(instance, Post):
+            return {
+                'username': instance.profile.user.username,
+                "profile_picture":  instance.profile.profile_picture.url if instance.profile.profile_picture else None,
+                "postId": instance.id,
+                "image":  instance.image.url
+            }
+        elif isinstance(instance, Like):
+            return {
+                'username': instance.profile.user.username,
+                "profile_picture":  instance.profile.profile_picture.url if instance.profile.profile_picture else None,
+                "postId": instance.post.id,
+                "image":  instance.post.image.url
+            }
+        elif isinstance(instance, Comment):
             
             return {
-                'username':instance.profile.user.username,
-                "profile_picture": BASE_URL + instance.profile.profile_picture.url,
-                "ReelId" : instance.reel.id,
-                "thumbnail" : BASE_URL + instance.reel.thumbnail.url
+                "username": instance.profile.user.username,
+                "profile_picture":  instance.profile.profile_picture.url if instance.profile.profile_picture else None,
+                "postId": instance.post.id,
+                "image":  instance.post.image.url,
+                "reply": True if instance.parent else False,
+                'id': instance.id
             }
-        
-        elif isinstance(instance , ReelComment):
-            return {
-                "username" : instance.profile.user.username,
-                "profile_picture": BASE_URL + instance.profile.profile_picture.url,
-                "ReelId" : instance.reel.id,
-                "thumbnail" : BASE_URL + instance.reel.thumbnail.url,
-                "reply" : True if instance.parent else False,
-                'id' :  instance.id
-
-            }
-        
-        # Post
-        elif isinstance(instance,Post):
-            return {
-                'username':instance.profile.user.username,
-                "profile_picture": BASE_URL + instance.profile.profile_picture.url,
-                "postId" : instance.id,
-                "image" : BASE_URL + instance.image.url
-                
-            }
-        elif isinstance(instance , Like):
-            
-            return {
-                'username':instance.profile.user.username,
-                "profile_picture": BASE_URL + instance.profile.profile_picture.url,
-                "postId" : instance.post.id,
-                "image" : BASE_URL + instance.post.image.url
-            }
-        
-        elif isinstance(instance , Comment):
-            return {
-                "username" : instance.profile.user.username,
-                "profile_picture": BASE_URL + instance.profile.profile_picture.url,
-                "postId" : instance.post.id,
-                "image" : BASE_URL + instance.post.image.url,
-                "reply" : True if instance.parent else False,
-                'id' :  instance.id
-           }
         elif isinstance(instance, Follow):
-            print(instance.accepted)
             return {
-                'username':instance.follower.user.username,
-                'profile_picture':BASE_URL+instance.follower.profile_picture.url,
-                "id":instance.id,
-                'accepted':instance.accepted
+                'username': instance.follower.user.username,
+                'profile_picture':  instance.follower.profile_picture.url if instance.follower.profile_picture else None,
+                "id": instance.id,
+                'accepted': instance.accepted
             }
-

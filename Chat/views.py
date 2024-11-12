@@ -40,7 +40,7 @@ class ChatRooms(APIView):
             return Response({"error":str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
    
-from django.db.models import Count, Q
+from django.db.models import Count, Q,Max
 
 class ChatRoomList(APIView):
     def get(self, request):
@@ -52,12 +52,13 @@ class ChatRoomList(APIView):
             chat_rooms = Chatroom.objects.filter(
                 chatroom_users__user=current_user
             ).annotate(
-                message_count=Count('messages')
+                message_count=Count('messages'),
+                latest_message_time=Max('messages__timestamp')
             ).filter(
                 message_count__gt=0
             ).exclude(
                 Q(id__in=deleted_chatroom_ids) 
-            )
+            ).order_by('-latest_message_time')
 
             serializer = ChatRoomSerializer(chat_rooms, many=True, context={'request': request})
             
@@ -83,10 +84,17 @@ class ChatRoomSpecific(APIView):
 class GetMessages(APIView):
     def get(self, request,chatroom):
         chatroom = Chatroom.objects.get(name=chatroom)
+
         if not chatroom.chatroom_users.filter(user=request.user).exists():
             return Response({"error": "Unauthorized Access"}, status=status.HTTP_403_FORBIDDEN)
         
         messages = Message.objects.filter(chatroom=chatroom).order_by('timestamp')
+        try:
+            deleted_chatroom = ChatRoomDeleted.objects.filter(chatroom__name=chatroom , user=request.user).first()
+            if deleted_chatroom.created_at:
+                messages = Message.objects.filter(chatroom=chatroom ,timestamp__gt=deleted_chatroom.created_at )
+        except:
+            pass
         serializer = MessageSerializer(messages,many=True,context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
     
@@ -137,12 +145,31 @@ class GetMessages(APIView):
 
 
 class GetNotifications(APIView):
-    def get(self,request):
+    def get(self, request):
         try:
             notifications = Notification.objects.filter(user=request.user).order_by("-id")
-            serializer = NotificationSerilaizer(notifications,many=True)
-            return Response(serializer.data,status=status.HTTP_200_OK)
+            
+            valid_notifications = []
+            for notification in notifications:
+                serialized_notification = NotificationSerilaizer(notification).data
+                if serialized_notification.get("content_object") is not None:
+                    valid_notifications.append(serialized_notification)
+            
+            return Response(valid_notifications, status=status.HTTP_200_OK)
+        
         except Exception as e:
             print(e)
-            return Response({'message' : str(e)},status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
+
+class DeleteChatRoomUser(APIView):
+    def delete(request,chatroom):
+        try:
+            chatroom_deleted , created = ChatRoomDeleted.objects.get_or_create(chatroom__id=chatroom, user=request.user)
+            if not created:
+                chatroom_deleted.disabled = False
+                chatroom_deleted.save()
+            return Response({'message':'chatroom delete',},status=status.HTTP_200_OK)
+        except Exception as e:
+            print(e)
+            return Response({'message':"NOt working"},status=status.HTTP_400_BAD_REQUEST)

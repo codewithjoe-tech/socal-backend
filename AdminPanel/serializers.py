@@ -98,3 +98,39 @@ class ReportSerializer(serializers.ModelSerializer):
             return obj.profile.user.username
         except:
             return obj.user.username
+        
+
+
+from rest_framework import serializers
+from Profiles.models import Reels, ReelComment
+
+class ReelsSerializer(serializers.ModelSerializer):
+    username = serializers.SerializerMethodField()
+    like_count = serializers.ReadOnlyField()
+    comment_count = serializers.ReadOnlyField()
+
+    class Meta:
+        model = Reels
+        fields = ['username', 'id', 'description', 'like_count', 'comment_count', 'ai_reported', 'created_at']
+
+    def get_username(self, obj):
+        return obj.profile.user.username
+
+
+class ReelCommentSerializer(serializers.ModelSerializer):
+    username = serializers.SerializerMethodField()
+    reel_id = serializers.SerializerMethodField()
+    reply = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ReelComment
+        fields = ['username', 'id', 'content', 'reel_id', 'ai_reported', 'reply', 'created_at']
+
+    def get_username(self, obj):
+        return obj.profile.user.username
+
+    def get_reel_id(self, obj):
+        return obj.reel.id
+
+    def get_reply(self, obj):
+        return obj.parent is not None
