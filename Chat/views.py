@@ -111,8 +111,6 @@ class GetMessages(APIView):
         except Chatroom.DoesNotExist:
             return Response({"error": "Chatroom does not exist."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Select the right s    erializer based on content_type
-
         print(data)
         if content_type == 'textmessage':
             serializer = TextMessageSerializer(data=data)

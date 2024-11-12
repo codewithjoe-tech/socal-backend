@@ -89,6 +89,16 @@ class VideoMessageSerializer(serializers.ModelSerializer):
         representation = super().to_representation(instance)
         representation['video'] = f"{instance.video.url}"  
         return representation
+    
+    # def validate(self,data):
+    #     from moviepy.editor import VideoFileClip
+    #     video = data.get('video')
+    #     if video:
+    #         clip = VideoFileClip(video)
+    #         duration = clip.duration
+    #         if duration>60:
+    #             raise ValidationError("The video should be of the length 2 minutes")
+    #     return data
 
 
 class AudioMessageSerializer(serializers.ModelSerializer):

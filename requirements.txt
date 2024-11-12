@@ -71,3 +71,4 @@ numpy
 ffmpeg-python
 django-storages
 boto3
+moviepy

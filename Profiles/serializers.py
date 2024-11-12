@@ -2,6 +2,7 @@ from rest_framework import serializers
 from . models import *
 from UserManagement.serializers import UserModelSerializer
 from django.utils import timesince
+from django.core.exceptions import ValidationError
 
 
 
@@ -213,6 +214,16 @@ class ReelSerializer(serializers.ModelSerializer):
             else:
                 representation['video'] = None
         return representation
+    # def validate(self,data):
+    #     from moviepy.editor import VideoFileClip
+    #     video = data.get('video')
+    #     if video:
+    #         clip = VideoFileClip(video)
+    #         duration = clip.duration
+    #         if duration>15:
+    #             raise ValidationError("The video should be of the length 15 seconds")
+    #     return data
+
     
 
 class ReelCommentSerializer(serializers.ModelSerializer):
