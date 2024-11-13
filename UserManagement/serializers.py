@@ -2,10 +2,9 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer,TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
-from .utils import send_verification_email
 from . models import *
 from Profiles.models import Profile
-
+from .tasks import send_mails_to_users
 
 User = get_user_model()
 
@@ -33,7 +32,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data  = super().validate(data)
         user = self.user
         if not user.email_verified:
-            send_verification_email(user)
+            send_mails_to_users.delay(user.id)
             raise serializers.ValidationError("Email is not verified.")
         if user.banned:
             raise serializers.ValidationError("User is banned.")

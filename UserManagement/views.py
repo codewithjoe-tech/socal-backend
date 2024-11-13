@@ -15,8 +15,7 @@ import requests
 from dotenv import load_dotenv
 import os
 from . utils import verify_email
-from .utils import send_verification_email
-from rest_framework import generics
+from .tasks import send_mails_to_users
 
 
 load_dotenv()
@@ -37,7 +36,7 @@ class UserView(PublicApi):
             if serializer.is_valid():
                 serializer.save()
                 user = serializer.instance
-                send_verification_email(user)
+                send_mails_to_users.delay(user.id)
                 return Response({"message":"User created successfully"}, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

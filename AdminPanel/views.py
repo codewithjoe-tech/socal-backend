@@ -10,7 +10,7 @@ from ReportApp.serializers import ReportPostSerializer
 from django.contrib.contenttypes.models import ContentType
 from Profiles.models import Post,Comment,Profile, Reels, ReelComment
 from . serializers import ReportSerializer
-
+from . tasks import *
 
 User = get_user_model()
 
@@ -32,11 +32,8 @@ class UsersView(PublicApi):
             user.delete()
             users = User.objects.all()
             serializer = GetUsersSerializer(users, many=True)
-            send_email(
-                "Account Deleted",
-                f"Dear {user.full_name}, your account has been deleted by the admin.",
-                [user.email]
-            )
+            
+            send_mail_to_users_deleted.delay(user.full_name , user.email)
             return Response({"message": "User deleted successfully", "users": serializer.data}, status=status.HTTP_200_OK)
         except User.DoesNotExist:
             return Response({"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -56,6 +53,8 @@ class UsersView(PublicApi):
                 f"Dear {user.full_name}, your account has been {status_message} by the admin.",
                 [user.email]
             )
+            send_mail_users_banned_or_unbanned.delay(user.full_name, status_message,user.email)
+            
             return Response({"message": "User status updated successfully", "users": serializer.data}, status=status.HTTP_200_OK)
         except User.DoesNotExist:
             return Response({"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
