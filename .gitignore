@@ -1,7 +1,7 @@
 venv
 media/
 myenv
-.env
+
 Reel Videos/
 data/
 db_data_clean.json
