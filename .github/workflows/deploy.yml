@@ -34,6 +34,7 @@ jobs:
         chmod 600 ~/.ssh/id_rsa
         ssh-keyscan -H ${{ secrets.AWS_EC2_IP }} >> ~/.ssh/known_hosts
 
+    # Step 6: Deploy on AWS EC2
     - name: Deploy on AWS EC2
       env:
         DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
