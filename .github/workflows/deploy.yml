@@ -24,7 +24,11 @@ jobs:
 
     - name: Build and Push Docker Image
       run: |
-        docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook:latest .
+        TAG=${{ github.sha }}
+        docker build --no-cache -t ${{ secrets.DOCKER_USERNAME }}/friendbook:$TAG .
+        docker push ${{ secrets.DOCKER_USERNAME }}/friendbook:$TAG
+        # Also tag as 'latest' if needed
+        docker tag ${{ secrets.DOCKER_USERNAME }}/friendbook:$TAG ${{ secrets.DOCKER_USERNAME }}/friendbook:latest
         docker push ${{ secrets.DOCKER_USERNAME }}/friendbook:latest
 
     - name: Setup SSH Key
@@ -49,7 +53,7 @@ jobs:
       run: |
         ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.AWS_EC2_IP }} << EOF
           echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-          docker pull $DOCKER_USERNAME/friendbook:latest
+          docker pull $DOCKER_USERNAME/friendbook:$TAG
           docker stop friendbook || true
           docker rm friendbook || true
           docker run -d --name friendbook -p 80:8000 \
@@ -60,5 +64,7 @@ jobs:
             -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
             -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
             -e FRONT_END="$FRONT_END" \
-            $DOCKER_USERNAME/friendbook:latest
+            $DOCKER_USERNAME/friendbook:$TAG
+          # Clean up old Docker images to save space
+          docker image prune -a -f
         EOF
