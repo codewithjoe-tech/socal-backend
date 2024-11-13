@@ -17,7 +17,7 @@ SECRET_KEY = 'django-insecure-^$n@v9z)i#$c)r95wqm*$0@pwx9tx-v3u26i&5w-k+c-_wt(^r
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 
@@ -144,8 +144,8 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'friendbook_db',  
         'USER': 'postgres',       
-        'PASSWORD': 'Sneha1103',  
-        'HOST': 'friendbook.c5mo06meke7e.ap-south-1.rds.amazonaws.com', 
+        'PASSWORD': os.getenv("POSTGRES_PASSWORD"),  
+        'HOST': os.getenv('POSTGRES_HOST'), 
         'PORT': '5432',           
     }
 }
