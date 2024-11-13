@@ -31,6 +31,9 @@ jobs:
         docker tag ${{ secrets.DOCKER_USERNAME }}/friendbook:$TAG ${{ secrets.DOCKER_USERNAME }}/friendbook:latest
         docker push ${{ secrets.DOCKER_USERNAME }}/friendbook:latest
 
+    - name: Set TAG Environment Variable
+      run: echo "TAG=${{ github.sha }}" >> $GITHUB_ENV
+
     - name: Setup SSH Key
       run: |
         mkdir -p ~/.ssh/
@@ -38,7 +41,6 @@ jobs:
         chmod 600 ~/.ssh/id_rsa
         ssh-keyscan -H ${{ secrets.AWS_EC2_IP }} >> ~/.ssh/known_hosts
 
-    # Step 6: Deploy on AWS EC2
     - name: Deploy on AWS EC2
       env:
         DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -50,6 +52,7 @@ jobs:
         GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
         GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         FRONT_END: ${{ secrets.FRONT_END }}
+        TAG: ${{ env.TAG }}
       run: |
         ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.AWS_EC2_IP }} << EOF
           echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
@@ -65,6 +68,6 @@ jobs:
             -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
             -e FRONT_END="$FRONT_END" \
             $DOCKER_USERNAME/friendbook:$TAG
-          # Clean up old Docker images to save space
+          
           docker image prune -a -f
         EOF
