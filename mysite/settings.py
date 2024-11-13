@@ -12,10 +12,10 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-SECRET_KEY = 'django-insecure-^$n@v9z)i#$c)r95wqm*$0@pwx9tx-v3u26i&5w-k+c-_wt(^r'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 
-DEBUG = True
+DEBUG = os.getenv('DEBUG',True)=='True'
 
 ALLOWED_HOSTS = ["*"]
 
@@ -139,16 +139,28 @@ REST_FRAMEWORK = {
 #     }
 # }
 # else:
+import dj_database_url
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'friendbook_db',  
-        'USER': 'postgres',       
-        'PASSWORD': os.getenv("POSTGRES_PASSWORD"),  
-        'HOST': os.getenv('POSTGRES_HOST'), 
-        'PORT': '5432',           
-    }
+    'default': dj_database_url.config(
+        default=os.getenv('DATABASE_URL'),
+        engine='django.db.backends.postgresql',
+        conn_max_age=600
+    )
 }
+
+# Fallback to manual settings if `DATABASE_URL` is not provided
+if not DATABASES['default']:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('POSTGRES_DB', 'friendbook_db'),
+            'USER': os.getenv('POSTGRES_USER', 'postgres'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD', ''),
+            'HOST': os.getenv('POSTGRES_HOST', 'localhost'),
+            'PORT': '5432',
+        }
+    }
 
 
 # Password validation
