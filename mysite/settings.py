@@ -156,8 +156,8 @@ if not DATABASES['default']:
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': os.getenv('POSTGRES_DB', 'friendbook_db'),
             'USER': os.getenv('POSTGRES_USER', 'postgres'),
-            'PASSWORD': os.getenv('POSTGRES_PASSWORD', ''),
-            'HOST': os.getenv('POSTGRES_HOST', 'localhost'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'Sneha1103'),
+            'HOST': os.getenv('POSTGRES_HOST', 'friendbook.c5mo06meke7e.ap-south-1.rds.amazonaws.com'),
             'PORT': '5432',
         }
     }
