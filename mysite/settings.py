@@ -143,7 +143,7 @@ import dj_database_url
 
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.getenv('postgres://postgres:Sneha1103@friendbook.c5mo06meke7e.ap-south-1.rds.amazonaws.com:5432/friendbook_db'),
+        default='postgres://postgres:Sneha1103@friendbook.c5mo06meke7e.ap-south-1.rds.amazonaws.com:5432/friendbook_db',
         engine='django.db.backends.postgresql',
         conn_max_age=600
     )
