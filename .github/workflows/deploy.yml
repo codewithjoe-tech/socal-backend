@@ -56,26 +56,29 @@ jobs:
 
       - name: Deploy on AWS EC2
         run: |
-          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa .env ubuntu@${{ secrets.AWS_EC2_IP }}:/home/ubuntu/
+          # Copy environment and Docker Compose files to EC2
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa .env docker-compose.yaml ubuntu@${{ secrets.AWS_EC2_IP }}:/home/ubuntu/
 
+          # Connect to EC2 and execute deployment commands
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.AWS_EC2_IP }} << 'EOF'
+            # Load environment variables
             export $(cat /home/ubuntu/.env | xargs)
             
             # Docker login
             echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
-            # Pull the latest Docker image
-            docker pull $DOCKER_USERNAME/friendbook:$TAG
+            # Navigate to project directory
+            cd /home/ubuntu
 
-            # Stop and remove existing container
-            docker stop friendbook || true
-            docker rm friendbook || true
+            # Pull the latest Docker images
+            docker-compose pull
 
-            # Run the new container with environment variables
-            docker run -d --name friendbook -p 80:8000 \
-              --env-file /home/ubuntu/.env \
-              $DOCKER_USERNAME/friendbook:$TAG
+            # Stop and remove any existing containers
+            docker-compose down
 
-            # Clean up unused images
+            # Start containers in detached mode
+            docker-compose up -d
+
+            # Clean up unused Docker images
             docker image prune -a -f
           EOF
