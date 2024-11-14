@@ -14,31 +14,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      # Step 2: Setup Docker Buildx
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      # Step 3: Login to Docker Hub
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      # Step 4: Build and push Docker image to Docker Hub
-      - name: Build and Push Docker Image
-        run: |
-          TAG=${{ github.sha }}
-          docker build --no-cache -t ${{ secrets.DOCKER_USERNAME }}/friendbook:$TAG .
-          docker push ${{ secrets.DOCKER_USERNAME }}/friendbook:$TAG
-          docker tag ${{ secrets.DOCKER_USERNAME }}/friendbook:$TAG ${{ secrets.DOCKER_USERNAME }}/friendbook:latest
-          docker push ${{ secrets.DOCKER_USERNAME }}/friendbook:latest
-
-      # Step 5: Set TAG environment variable for later use
-      - name: Set TAG Environment Variable
-        run: echo "TAG=${{ github.sha }}" >> $GITHUB_ENV
-
-      # Step 6: Setup SSH key for EC2 access
+      # Step 2: Setup SSH Key for EC2 access
       - name: Setup SSH Key
         run: |
           mkdir -p ~/.ssh/
@@ -46,7 +22,7 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.AWS_EC2_IP }} >> ~/.ssh/known_hosts
 
-      # Step 7: Create .env file from GitHub Secrets
+      # Step 3: Create .env file from GitHub Secrets
       - name: Create .env File from Secrets
         run: |
           echo "DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" > .env
@@ -60,31 +36,25 @@ jobs:
           echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD }}" >> .env
           echo "DEBUG=${{ secrets.DEBUG }}" >> .env
           echo "ALLOWED_HOSTS=${{ secrets.ALLOWED_HOSTS }}" >> .env
-          echo "TAG=${{ env.TAG }}" >> .env
 
-      # Step 8: Check if files are present (for debugging)
-      - name: Verify Files Exist
+      # Step 4: Copy files to EC2 instance
+      - name: Copy Files to EC2
         run: |
-          ls -la ${{ github.workspace }}
-          ls -la ${{ github.workspace }}/nginx
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
+            .env docker-compose.yml nginx/nginx.conf \
+            ubuntu@${{ secrets.AWS_EC2_IP }}:/home/ubuntu/
 
-      # Step 9: Copy files to EC2 and deploy using docker-compose
-      - name: Deploy to AWS EC2
+      # Step 5: SSH into EC2 and deploy
+      - name: Deploy on EC2
         run: |
-          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ github.workspace }}/.env ${{ github.workspace }}/docker-compose.yml ${{ github.workspace }}/nginx/nginx.conf ubuntu@${{ secrets.AWS_EC2_IP }}:/home/ubuntu/
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.AWS_EC2_IP }} << 'EOF'
-            export $(cat /home/ubuntu/.env | xargs)
+            # Navigate to the project directory
+            cd /home/ubuntu
+
+            # Build and start services with docker-compose
+            docker-compose down  # Stop any running services
+            docker-compose up -d --build  # Build and run in detached mode
             
-            # Docker login
-            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-
-            # Pull the latest Docker image
-            docker-compose -f /home/ubuntu/docker-compose.yml pull
-
-            # Restart services using docker-compose
-            docker-compose -f /home/ubuntu/docker-compose.yml down
-            docker-compose -f /home/ubuntu/docker-compose.yml up -d
-
-            # Clean up unused Docker images
+            # Optional: Clean up unused Docker images
             docker image prune -a -f
           EOF
