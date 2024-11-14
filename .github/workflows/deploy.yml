@@ -53,11 +53,7 @@ jobs:
           echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
           echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
           echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
-          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
-          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
-          echo "FRONT_END=${{ secrets.FRONT_END }}" >> .env
-          echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
-          echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD }}" >> .env
+          echo "REDIS_URL=redis://redis:6379/0" >> .env
           echo "DEBUG=${{ secrets.DEBUG }}" >> .env
           echo "TAG=${{ env.TAG }}" >> .env
 
@@ -67,7 +63,7 @@ jobs:
           scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa .env docker-compose.yml ubuntu@${{ secrets.AWS_EC2_IP }}:/home/ubuntu/
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.AWS_EC2_IP }} << 'EOF'
             export $(cat /home/ubuntu/.env | xargs)
-            
+
             # Docker login
             echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
