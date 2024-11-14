@@ -39,7 +39,7 @@ jobs:
           echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
 
       - name: Build Docker Images
-        run: docker-compose -f docker-compose.yml build
+        run: docker-compose -f docker-compose.yaml build
 
       - name: Export EC2 Key
         run: |
@@ -52,7 +52,7 @@ jobs:
           EC2_IP: ${{ secrets.AWS_EC2_IP }}
         run: |
           # Upload Docker Compose files and .env to EC2
-          scp -o StrictHostKeyChecking=no -i ec2-key.pem -r docker-compose.yml .env "$EC2_USER@$EC2_IP:/home/$EC2_USER/app/"
+          scp -o StrictHostKeyChecking=no -i ec2-key.pem -r docker-compose.yaml .env "$EC2_USER@$EC2_IP:/home/$EC2_USER/app/"
 
           # SSH into EC2 and deploy
           ssh -o StrictHostKeyChecking=no -i ec2-key.pem "$EC2_USER@$EC2_IP" << 'EOF'
