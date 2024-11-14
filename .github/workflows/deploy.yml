@@ -23,8 +23,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y docker-compose
 
-      - name: Create .env File from Secrets
+      - name: Create backend directory and .env File from Secrets
         run: |
+          mkdir -p backend  # Ensure the backend directory exists
           echo "DEBUG=True" > backend/.env
           echo "DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> backend/.env
           echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> backend/.env
