@@ -65,13 +65,13 @@ jobs:
       # Step 8: Check if files are present (for debugging)
       - name: Verify Files Exist
         run: |
-          ls -la
-          ls -la nginx
+          ls -la ${{ github.workspace }}
+          ls -la ${{ github.workspace }}/nginx
 
       # Step 9: Copy files to EC2 and deploy using docker-compose
       - name: Deploy to AWS EC2
         run: |
-          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa .env ${{ github.workspace }}/docker-compose.yml ${{ github.workspace }}/nginx/nginx.conf ubuntu@${{ secrets.AWS_EC2_IP }}:/home/ubuntu/
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ github.workspace }}/.env ${{ github.workspace }}/docker-compose.yml ${{ github.workspace }}/nginx/nginx.conf ubuntu@${{ secrets.AWS_EC2_IP }}:/home/ubuntu/
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.AWS_EC2_IP }} << 'EOF'
             export $(cat /home/ubuntu/.env | xargs)
             
