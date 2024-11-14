@@ -1,20 +1,20 @@
-name: Deploy Django App to AWS EC2
+name: CI/CD Pipeline for Django Project
 
 on:
   push:
     branches:
-      - main
+      - main  # Deploy when code is pushed to the main branch
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout code
-      - name: Checkout
-        uses: actions/checkout@v2
+      # Step 1: Checkout the latest code
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      # Step 2: Setup SSH Key for EC2 access
+      # Step 2: Set up SSH Key for EC2 access
       - name: Setup SSH Key
         run: |
           mkdir -p ~/.ssh/
@@ -23,7 +23,7 @@ jobs:
           ssh-keyscan -H ${{ secrets.AWS_EC2_IP }} >> ~/.ssh/known_hosts
 
       # Step 3: Create .env file from GitHub Secrets
-      - name: Create .env File from Secrets
+      - name: Create .env File
         run: |
           echo "DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" > .env
           echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
@@ -37,24 +37,37 @@ jobs:
           echo "DEBUG=${{ secrets.DEBUG }}" >> .env
           echo "ALLOWED_HOSTS=${{ secrets.ALLOWED_HOSTS }}" >> .env
 
-      # Step 4: Copy files to EC2 instance
+      # Step 4: Build and push Docker image
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: Build Docker Image
+        run: docker build -t $DOCKER_USERNAME/friendbook:latest .
+
+      - name: Push Docker Image to Docker Hub
+        run: docker push $DOCKER_USERNAME/friendbook:latest
+
+      # Step 5: Copy files to EC2 instance
       - name: Copy Files to EC2
         run: |
           scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
             .env docker-compose.yml nginx/nginx.conf \
             ubuntu@${{ secrets.AWS_EC2_IP }}:/home/ubuntu/
 
-      # Step 5: SSH into EC2 and deploy
+      # Step 6: Deploy on EC2
       - name: Deploy on EC2
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.AWS_EC2_IP }} << 'EOF'
-            # Navigate to the project directory
             cd /home/ubuntu
 
-            # Build and start services with docker-compose
-            docker-compose down  # Stop any running services
-            docker-compose up -d --build  # Build and run in detached mode
-            
-            # Optional: Clean up unused Docker images
-            docker image prune -a -f
+            # Stop existing containers and pull the latest Docker image
+            docker-compose down
+            docker-compose pull
+            docker-compose up -d --build
+
+            # Clean up unused Docker images
+            docker image prune -f
           EOF

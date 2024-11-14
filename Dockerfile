@@ -22,8 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application files
 COPY . .
 
-# Add a healthcheck to verify that the app is running
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 CMD curl -f http://localhost:8000/health || exit 1
+
 
 # Command to start Daphne ASGI server
 CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "mysite.asgi:application"]

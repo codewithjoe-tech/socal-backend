@@ -1,12 +1,11 @@
 version: '3.8'
 
 services:
+  # Django Application (Friendbook)
   web:
-    image: $DOCKER_USERNAME/friendbook:$TAG
+    image: $DOCKER_USERNAME/friendbook:latest
     restart: always
     command: daphne -b 0.0.0.0 -p 8000 mysite.asgi:application
-    ports:
-      - "8000"  # Only exposed internally to NGINX
     environment:
       - DEBUG=${DEBUG}
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
@@ -14,11 +13,17 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+      - FRONT_END=${FRONT_END}
+    volumes:
+      - .:/app
     depends_on:
       - redis
       - celery
       - celery-beat
+    expose:
+      - 8000  # Exposed internally to Nginx
 
+  # Redis Service
   redis:
     image: redis:latest
     restart: always
@@ -27,11 +32,12 @@ services:
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
-      timeout: 30s
+      timeout: 10s
       retries: 5
 
+  # Celery Worker
   celery:
-    image: $DOCKER_USERNAME/friendbook:$TAG
+    image: $DOCKER_USERNAME/friendbook:latest
     restart: always
     command: celery -A mysite worker --loglevel=info
     environment:
@@ -42,8 +48,9 @@ services:
     depends_on:
       - redis
 
+  # Celery Beat
   celery-beat:
-    image: $DOCKER_USERNAME/friendbook:$TAG
+    image: $DOCKER_USERNAME/friendbook:latest
     restart: always
     command: celery -A mysite beat --loglevel=info
     environment:
@@ -54,6 +61,7 @@ services:
     depends_on:
       - redis
 
+  # Nginx Proxy
   nginx:
     image: nginx:latest
     restart: always
