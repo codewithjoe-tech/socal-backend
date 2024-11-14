@@ -2,62 +2,47 @@ version: '3.8'
 
 services:
   web:
-    build: .
-    command: python manage.py runserver 0.0.0.0:8000
-    volumes:
-      - .:/app
+    image: $DOCKER_USERNAME/friendbook:$TAG
+    restart: always
+    command: daphne -b 0.0.0.0 -p 8000 mysite.asgi:application
     ports:
-      - "8000:8000"
+      - "80:8000"
     environment:
-      - DEBUG=True
-      - DJANGO_SETTINGS_MODULE=mysite.settings  
+      - DEBUG=${DEBUG}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DATABASE_URL=${DATABASE_URL}          # Connect to RDS
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
     depends_on:
-      - db
       - redis
-
-
-  db:
-    image: postgres:latest
-    restart: always
-    environment:
-      POSTGRES_DB: mydatabase
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
 
   redis:
     image: redis:latest
+    restart: always
     ports:
       - "6379:6379"
 
   celery:
-    build: .
+    image: $DOCKER_USERNAME/friendbook:$TAG
+    restart: always
     command: celery -A mysite worker --loglevel=info
-    volumes:
-      - .:/app
-    depends_on:
-      - redis
-      - db
     environment:
       - DJANGO_SETTINGS_MODULE=mysite.settings
+      - DATABASE_URL=${DATABASE_URL}          # Connect to RDS
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
 
   celery-beat:
-    build: .
+    image: $DOCKER_USERNAME/friendbook:$TAG
+    restart: always
     command: celery -A mysite beat --loglevel=info
-    volumes:
-      - .:/app
-    depends_on:
-      - redis
-      - db
     environment:
       - DJANGO_SETTINGS_MODULE=mysite.settings
+      - DATABASE_URL=${DATABASE_URL}          # Connect to RDS
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-
-volumes:
-  postgres_data:
+    depends_on:
+      - redis
