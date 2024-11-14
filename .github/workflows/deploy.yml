@@ -43,7 +43,9 @@ jobs:
 
     - name: Deploy on AWS EC2
       run: |
-        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.AWS_EC2_IP }} << EOF
+        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
+          ubuntu@${{ secrets.AWS_EC2_IP }} << 'EOF'
+          
           # Export environment variables explicitly for the SSH session
           export DJANGO_SECRET_KEY="${{ secrets.DJANGO_SECRET_KEY }}"
           export DATABASE_URL="${{ secrets.DATABASE_URL }}"
@@ -90,4 +92,5 @@ jobs:
 
           # Clean up unused Docker images
           docker image prune -a -f
+          
         EOF
