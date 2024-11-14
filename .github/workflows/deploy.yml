@@ -52,13 +52,13 @@ jobs:
           EC2_IP: ${{ secrets.AWS_EC2_IP }}
         run: |
           # Create directory on EC2 if it doesn't exist
-          ssh -o StrictHostKeyChecking=no -i ec2-key.pem "$EC2_USER@$EC2_IP" "mkdir -p /home/$EC2_USER/app/"
+          ssh -t -o StrictHostKeyChecking=no -i ec2-key.pem "$EC2_USER@$EC2_IP" "mkdir -p /home/$EC2_USER/app/"
 
           # Upload Docker Compose files and .env to EC2
           scp -o StrictHostKeyChecking=no -i ec2-key.pem -r docker-compose.yaml .env "$EC2_USER@$EC2_IP:/home/$EC2_USER/app/"
 
           # SSH into EC2 and deploy
-          ssh -o StrictHostKeyChecking=no -i ec2-key.pem "$EC2_USER@$EC2_IP" << 'EOF'
+          ssh -t -o StrictHostKeyChecking=no -i ec2-key.pem "$EC2_USER@$EC2_IP" << 'EOF'
             cd app
             docker-compose down
             docker-compose up -d --build
