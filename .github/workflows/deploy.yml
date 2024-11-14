@@ -54,20 +54,37 @@ jobs:
         FRONT_END: ${{ secrets.FRONT_END }}
         TAG: ${{ env.TAG }}
       run: |
-        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.AWS_EC2_IP }} << EOF
+        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.AWS_EC2_IP }} << 'EOF'
+          # Log the environment variables to confirm they're being passed correctly
+          echo "DJANGO_SECRET_KEY: $DJANGO_SECRET_KEY"
+          echo "DATABASE_URL: $DATABASE_URL"
+          echo "AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID"
+          echo "AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY"
+          echo "GOOGLE_CLIENT_ID: $GOOGLE_CLIENT_ID"
+          echo "GOOGLE_CLIENT_SECRET: $GOOGLE_CLIENT_SECRET"
+          echo "FRONT_END: $FRONT_END"
+
+          # Docker login
           echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+
+          # Pull the latest image from Docker Hub
           docker pull $DOCKER_USERNAME/friendbook:$TAG
+
+          # Stop and remove any existing containers
           docker stop friendbook || true
           docker rm friendbook || true
+
+          # Run the new container
           docker run -d --name friendbook -p 80:8000 \
-            -e DJANGO_SECRET_KEY="$DJANGO_SECRET_KEY" \
-            -e DATABASE_URL="$DATABASE_URL" \
-            -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
-            -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
-            -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
-            -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
-            -e FRONT_END="$FRONT_END" \
+            -e DJANGO_SECRET_KEY="\$DJANGO_SECRET_KEY" \
+            -e DATABASE_URL="\$DATABASE_URL" \
+            -e AWS_ACCESS_KEY_ID="\$AWS_ACCESS_KEY_ID" \
+            -e AWS_SECRET_ACCESS_KEY="\$AWS_SECRET_ACCESS_KEY" \
+            -e GOOGLE_CLIENT_ID="\$GOOGLE_CLIENT_ID" \
+            -e GOOGLE_CLIENT_SECRET="\$GOOGLE_CLIENT_SECRET" \
+            -e FRONT_END="\$FRONT_END" \
             $DOCKER_USERNAME/friendbook:$TAG
           
+          # Clean up unused Docker images
           docker image prune -a -f
         EOF
