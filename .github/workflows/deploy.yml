@@ -1,4 +1,4 @@
-name: Deploy on AWS
+name: Deploy Django App to AWS EC2
 
 on:
   push:
@@ -10,89 +10,72 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    - name: Setup Docker Buildx
-      uses: docker/setup-buildx-action@v1
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v1
 
-    - name: Login to Docker Hub
-      uses: docker/login-action@v1
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Build and Push Docker Image
-      run: |
-        TAG=${{ github.sha }}
-        docker build --no-cache -t ${{ secrets.DOCKER_USERNAME }}/friendbook:$TAG .
-        docker push ${{ secrets.DOCKER_USERNAME }}/friendbook:$TAG
-        # Also tag as 'latest' if needed
-        docker tag ${{ secrets.DOCKER_USERNAME }}/friendbook:$TAG ${{ secrets.DOCKER_USERNAME }}/friendbook:latest
-        docker push ${{ secrets.DOCKER_USERNAME }}/friendbook:latest
+      - name: Build and Push Docker Image
+        run: |
+          TAG=${{ github.sha }}
+          docker build --no-cache -t ${{ secrets.DOCKER_USERNAME }}/friendbook:$TAG .
+          docker push ${{ secrets.DOCKER_USERNAME }}/friendbook:$TAG
+          docker tag ${{ secrets.DOCKER_USERNAME }}/friendbook:$TAG ${{ secrets.DOCKER_USERNAME }}/friendbook:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/friendbook:latest
 
-    - name: Set TAG Environment Variable
-      run: echo "TAG=${{ github.sha }}" >> $GITHUB_ENV
+      - name: Set TAG Environment Variable
+        run: echo "TAG=${{ github.sha }}" >> $GITHUB_ENV
 
-    - name: Setup SSH Key
-      run: |
-        mkdir -p ~/.ssh/
-        echo "${{ secrets.AWS_EC2_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H ${{ secrets.AWS_EC2_IP }} >> ~/.ssh/known_hosts
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh/
+          echo "${{ secrets.AWS_EC2_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.AWS_EC2_IP }} >> ~/.ssh/known_hosts
 
-    - name: Deploy on AWS EC2
-      run: |
-        ssh -t -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
-          ubuntu@${{ secrets.AWS_EC2_IP }} << 'EOF'
-          
-          # Export environment variables explicitly for the SSH session
-          export DJANGO_SECRET_KEY="${{ secrets.DJANGO_SECRET_KEY }}"
-          export DATABASE_URL="${{ secrets.DATABASE_URL }}"
-          export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-          export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-          export GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}"
-          export GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}"
-          export FRONT_END="${{ secrets.FRONT_END }}"
-          export DOCKER_USERNAME="${{ secrets.DOCKER_USERNAME }}"
-          export DOCKER_PASSWORD="${{ secrets.DOCKER_PASSWORD }}"
-          export DEBUG="${{ secrets.DEBUG }}"
-          export TAG="${{ env.TAG }}"
+      - name: Create .env File from Secrets
+        run: |
+          echo "DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" > .env
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
+          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
+          echo "FRONT_END=${{ secrets.FRONT_END }}" >> .env
+          echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
+          echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD }}" >> .env
+          echo "DEBUG=${{ secrets.DEBUG }}" >> .env
+          echo "TAG=${{ env.TAG }}" >> .env
 
-          # Confirm environment variables are set
-          echo "DJANGO_SECRET_KEY: $DJANGO_SECRET_KEY"
-          echo "DATABASE_URL: $DATABASE_URL"
-          echo "AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID"
-          echo "AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY"
-          echo "GOOGLE_CLIENT_ID: $GOOGLE_CLIENT_ID"
-          echo "GOOGLE_CLIENT_SECRET: $GOOGLE_CLIENT_SECRET"
-          echo "FRONT_END: $FRONT_END"
-          echo "DOCKER_USERNAME: $DOCKER_USERNAME"
-          echo "TAG: $TAG"
+      - name: Deploy on AWS EC2
+        run: |
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa .env ubuntu@${{ secrets.AWS_EC2_IP }}:/home/ubuntu/
 
-          # Docker login
-          echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.AWS_EC2_IP }} << 'EOF'
+            export $(cat /home/ubuntu/.env | xargs)
+            
+            # Docker login
+            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
-          # Pull the latest image from Docker Hub
-          docker pull $DOCKER_USERNAME/friendbook:$TAG
+            # Pull the latest Docker image
+            docker pull $DOCKER_USERNAME/friendbook:$TAG
 
-          # Stop and remove any existing containers
-          docker stop friendbook || true
-          docker rm friendbook || true
+            # Stop and remove existing container
+            docker stop friendbook || true
+            docker rm friendbook || true
 
-          # Run the new container
-          docker run -d --name friendbook -p 80:8000 \
-            -e DJANGO_SECRET_KEY="\$DJANGO_SECRET_KEY" \
-            -e DATABASE_URL="\$DATABASE_URL" \
-            -e AWS_ACCESS_KEY_ID="\$AWS_ACCESS_KEY_ID" \
-            -e AWS_SECRET_ACCESS_KEY="\$AWS_SECRET_ACCESS_KEY" \
-            -e GOOGLE_CLIENT_ID="\$GOOGLE_CLIENT_ID" \
-            -e GOOGLE_CLIENT_SECRET="\$GOOGLE_CLIENT_SECRET" \
-            -e FRONT_END="\$FRONT_END" \
-            -e DEBUG="\$DEBUG" \
-            $DOCKER_USERNAME/friendbook:$TAG
+            # Run the new container with environment variables
+            docker run -d --name friendbook -p 80:8000 \
+              --env-file /home/ubuntu/.env \
+              $DOCKER_USERNAME/friendbook:$TAG
 
-          # Clean up unused Docker images
-          docker image prune -a -f
-          
-        EOF
+            # Clean up unused images
+            docker image prune -a -f
+          EOF
