@@ -235,6 +235,8 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 
 
+
+
 ASGI_APPLICATION ='mysite.asgi.application'
 
 CHANNEL_LAYERS = {
