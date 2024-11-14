@@ -56,6 +56,7 @@ jobs:
           export FRONT_END="${{ secrets.FRONT_END }}"
           export DOCKER_USERNAME="${{ secrets.DOCKER_USERNAME }}"
           export DOCKER_PASSWORD="${{ secrets.DOCKER_PASSWORD }}"
+          export DEBUG="${{ secrets.DEBUG }}"
           export TAG="${{ env.TAG }}"
 
           # Confirm environment variables are set
@@ -88,6 +89,7 @@ jobs:
             -e GOOGLE_CLIENT_ID="\$GOOGLE_CLIENT_ID" \
             -e GOOGLE_CLIENT_SECRET="\$GOOGLE_CLIENT_SECRET" \
             -e FRONT_END="\$FRONT_END" \
+            -e DEBUG="\$DEBUG" \
             $DOCKER_USERNAME/friendbook:$TAG
 
           # Clean up unused Docker images
