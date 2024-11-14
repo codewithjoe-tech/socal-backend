@@ -53,17 +53,27 @@ jobs:
         run: |
           # Create directory if it doesn't exist and upload files
           ssh -o StrictHostKeyChecking=no -i ec2-key.pem "$EC2_USER@$EC2_IP" 'sudo mkdir -p /home/$EC2_USER/app && sudo chown $EC2_USER:$EC2_USER /home/$EC2_USER/app'
+
+          # Upload docker-compose file and .env file
           scp -o StrictHostKeyChecking=no -i ec2-key.pem docker-compose.yaml .env "$EC2_USER@$EC2_IP:/home/$EC2_USER/app/"
       
-          # SSH into EC2 and deploy
+          # SSH into EC2, update the instance, and deploy Docker Compose
           ssh -o StrictHostKeyChecking=no -i ec2-key.pem "$EC2_USER@$EC2_IP" << 'EOF'
+            # Update and upgrade the instance for latest security patches
+            sudo apt-get update && sudo apt-get upgrade -y
+
+            # Navigate to the application directory
             cd /home/$EC2_USER/app
+
+            # Stop and remove existing containers, if any
             docker-compose -f docker-compose.yaml down
+
+            # Build and start the containers in detached mode
             docker-compose -f docker-compose.yaml up -d --build
+
+            # Clean up the .env file to protect sensitive data
+            rm .env
           EOF
-
-
-
 
       - name: Clean Up
         run: rm -f ec2-key.pem
