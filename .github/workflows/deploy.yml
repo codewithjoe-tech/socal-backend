@@ -1,9 +1,9 @@
-name: Deploy Django App to AWS EC2
+name: Deploy to EC2
 
 on:
   push:
     branches:
-      - main
+      - main  # Trigger on pushes to the main branch
 
 jobs:
   build-and-deploy:
@@ -51,19 +51,20 @@ jobs:
         run: |
           echo "DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" > .env
           echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
-          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
-          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
-          echo "REDIS_URL=redis://redis:6379/0" >> .env
-          echo "DEBUG=${{ secrets.DEBUG }}" >> .env
+          echo "ALLOWED_HOSTS=${{ secrets.ALLOWED_HOSTS }}" >> .env
+          echo "CELERY_BROKER_URL=${{ secrets.CELERY_BROKER_URL }}" >> .env
+          echo "CELERY_RESULT_BACKEND=${{ secrets.CELERY_RESULT_BACKEND }}" >> .env
+          echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
+          echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD }}" >> .env
           echo "TAG=${{ env.TAG }}" >> .env
 
       # Step 8: Copy files to EC2 and deploy using docker-compose
       - name: Deploy to AWS EC2
         run: |
-          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa .env docker-compose.yml ubuntu@${{ secrets.AWS_EC2_IP }}:/home/ubuntu/
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa .env docker-compose.yml nginx/nginx.conf ubuntu@${{ secrets.AWS_EC2_IP }}:/home/ubuntu/
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.AWS_EC2_IP }} << 'EOF'
             export $(cat /home/ubuntu/.env | xargs)
-
+            
             # Docker login
             echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
