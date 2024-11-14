@@ -3,7 +3,7 @@ name: Deploy Django App to AWS EC2
 on:
   push:
     branches:
-      - main  # Trigger deployment on pushes to the main branch
+      - main
 
 jobs:
   deploy:
@@ -25,21 +25,21 @@ jobs:
 
       - name: Create .env File from Secrets
         run: |
-          echo "DEBUG=True" > .env
-          echo "DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> .env
-          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
-          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
-          echo "POSTGRES_HOST=${{ secrets.POSTGRES_HOST }}" >> .env
-          echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env
-          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
-          echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env
-          echo "CELERY_BROKER_URL=redis://redis:6379/0" >> .env
-          echo "CELERY_RESULT_BACKEND=redis://redis:6379/0" >> .env
-          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
-          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+          echo "DEBUG=True" > backend/.env
+          echo "DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> backend/.env
+          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> backend/.env
+          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> backend/.env
+          echo "POSTGRES_HOST=${{ secrets.POSTGRES_HOST }}" >> backend/.env
+          echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> backend/.env
+          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> backend/.env
+          echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> backend/.env
+          echo "CELERY_BROKER_URL=redis://redis:6379/0" >> backend/.env
+          echo "CELERY_RESULT_BACKEND=redis://redis:6379/0" >> backend/.env
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> backend/.env
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> backend/.env
 
       - name: Build Docker Images
-        run: docker-compose -f docker-compose.yaml build
+        run: docker-compose -f backend/docker-compose.yaml build
 
       - name: Export EC2 Key
         run: |
@@ -52,14 +52,14 @@ jobs:
           EC2_IP: ${{ secrets.AWS_EC2_IP }}
         run: |
           # Create directory on EC2 if it doesn't exist
-          ssh -t -o StrictHostKeyChecking=no -i ec2-key.pem "$EC2_USER@$EC2_IP" "mkdir -p /home/$EC2_USER/app/"
+          ssh -t -o StrictHostKeyChecking=no -i ec2-key.pem "$EC2_USER@$EC2_IP" "mkdir -p /home/$EC2_USER/app/backend"
 
-          # Upload Docker Compose files and .env to EC2
-          scp -o StrictHostKeyChecking=no -i ec2-key.pem -r docker-compose.yaml .env "$EC2_USER@$EC2_IP:/home/$EC2_USER/app/"
+          # Upload backend directory to EC2
+          scp -o StrictHostKeyChecking=no -i ec2-key.pem -r backend "$EC2_USER@$EC2_IP:/home/$EC2_USER/app/"
 
           # SSH into EC2 and deploy
           ssh -t -o StrictHostKeyChecking=no -i ec2-key.pem "$EC2_USER@$EC2_IP" << 'EOF'
-            cd app
+            cd app/backend
             docker-compose down
             docker-compose up -d --build
           EOF
