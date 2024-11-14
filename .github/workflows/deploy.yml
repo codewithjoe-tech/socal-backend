@@ -54,13 +54,14 @@ jobs:
           # Create directory if it doesn't exist and upload files
           ssh -o StrictHostKeyChecking=no -i ec2-key.pem "$EC2_USER@$EC2_IP" 'sudo mkdir -p /home/$EC2_USER/app && sudo chown $EC2_USER:$EC2_USER /home/$EC2_USER/app'
           scp -o StrictHostKeyChecking=no -i ec2-key.pem docker-compose.yaml .env "$EC2_USER@$EC2_IP:/home/$EC2_USER/app/"
-
+      
           # SSH into EC2 and deploy
           ssh -o StrictHostKeyChecking=no -i ec2-key.pem "$EC2_USER@$EC2_IP" << 'EOF'
             cd /home/$EC2_USER/app
-            docker-compose down
-            docker-compose up -d --build
+            docker-compose -f docker-compose.yaml down
+            docker-compose -f docker-compose.yaml up -d --build
           EOF
+
 
 
 
