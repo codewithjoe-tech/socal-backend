@@ -42,20 +42,21 @@ jobs:
         ssh-keyscan -H ${{ secrets.AWS_EC2_IP }} >> ~/.ssh/known_hosts
 
     - name: Deploy on AWS EC2
-      env:
-        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-        DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-        GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-        FRONT_END: ${{ secrets.FRONT_END }}
-        TAG: ${{ env.TAG }}
       run: |
-        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.AWS_EC2_IP }} << 'EOF'
-          # Log the environment variables to confirm they're being passed correctly
+        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.AWS_EC2_IP }} << EOF
+          # Export environment variables explicitly for the SSH session
+          export DJANGO_SECRET_KEY="${{ secrets.DJANGO_SECRET_KEY }}"
+          export DATABASE_URL="${{ secrets.DATABASE_URL }}"
+          export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+          export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+          export GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}"
+          export GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}"
+          export FRONT_END="${{ secrets.FRONT_END }}"
+          export DOCKER_USERNAME="${{ secrets.DOCKER_USERNAME }}"
+          export DOCKER_PASSWORD="${{ secrets.DOCKER_PASSWORD }}"
+          export TAG="${{ env.TAG }}"
+
+          # Confirm environment variables are set
           echo "DJANGO_SECRET_KEY: $DJANGO_SECRET_KEY"
           echo "DATABASE_URL: $DATABASE_URL"
           echo "AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID"
@@ -63,6 +64,8 @@ jobs:
           echo "GOOGLE_CLIENT_ID: $GOOGLE_CLIENT_ID"
           echo "GOOGLE_CLIENT_SECRET: $GOOGLE_CLIENT_SECRET"
           echo "FRONT_END: $FRONT_END"
+          echo "DOCKER_USERNAME: $DOCKER_USERNAME"
+          echo "TAG: $TAG"
 
           # Docker login
           echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
@@ -84,7 +87,7 @@ jobs:
             -e GOOGLE_CLIENT_SECRET="\$GOOGLE_CLIENT_SECRET" \
             -e FRONT_END="\$FRONT_END" \
             $DOCKER_USERNAME/friendbook:$TAG
-          
+
           # Clean up unused Docker images
           docker image prune -a -f
         EOF
