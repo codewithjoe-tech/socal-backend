@@ -63,7 +63,7 @@ jobs:
 
       - name: Run Docker Compose for tests
         run: |
-          docker-compose --env-file .env up -d
+          docker-compose up --build
           # Run Django tests
           docker-compose exec web python manage.py test
           docker-compose down
