@@ -83,6 +83,20 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           AWS_EC2_IP: ${{ secrets.AWS_EC2_IP }}
           EC2_USER: ${{ secrets.EC2_USER }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          FRONT_END: ${{ secrets.FRONT_END }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DEBUG: ${{ secrets.DEBUG }}
+          CELERY_BROKER_URL: redis://redis:6379/0
+          CELERY_RESULT_BACKEND: redis://redis:6379/0
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.AWS_EC2_IP }} << 'EOF'
             # Docker login
@@ -109,8 +123,8 @@ jobs:
             DJANGO_SECRET_KEY=$DJANGO_SECRET_KEY
             DATABASE_URL=$DATABASE_URL
             DEBUG=$DEBUG
-            CELERY_BROKER_URL=redis://redis:6379/0
-            CELERY_RESULT_BACKEND=redis://redis:6379/0
+            CELERY_BROKER_URL=$CELERY_BROKER_URL
+            CELERY_RESULT_BACKEND=$CELERY_RESULT_BACKEND
             EOT
 
             # Start containers
