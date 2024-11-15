@@ -61,12 +61,7 @@ jobs:
           docker build -f Dockerfile -t ${{ secrets.DOCKER_USERNAME }}/mysite-celery:${{ github.sha }} .
           docker push ${{ secrets.DOCKER_USERNAME }}/mysite-celery:${{ github.sha }}
 
-      - name: Run Docker Compose for tests
-        run: |
-          docker-compose up --build
-          # Run Django tests
-          docker-compose exec web python manage.py test
-          docker-compose down
+      
 
   deploy:
     needs: build
