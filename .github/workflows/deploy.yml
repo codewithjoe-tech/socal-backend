@@ -67,3 +67,7 @@ jobs:
           docker run -d --name celery-beat --link redis --link friendbook $DOCKER_USERNAME/friendbook:latest celery -A mysite beat -l info
 
         EOF
+
+
+
+        
