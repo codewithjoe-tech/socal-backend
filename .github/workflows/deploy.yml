@@ -1,70 +1,91 @@
-name: Deploy on AWS
+name: Deploy Django App to AWS EC2
 
 on:
   push:
     branches:
-      - main
+      - main  # Trigger deployment on pushes to the main branch
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Setup Docker Buildx
-      uses: docker/setup-buildx-action@v1
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
-    - name: Login to Docker Hub
-      uses: docker/login-action@v1
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Create .env File from Secrets
+        run: |
+          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" > .env
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
+          echo "DEBUG=${{ secrets.DEBUG }}" >> .env
+          echo "EC2_USER=${{ secrets.EC2_USER }}" >> .env
+          echo "FRONT_END=${{ secrets.FRONT_END }}" >> .env
+          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
+          echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env
+          echo "POSTGRES_HOST=${{ secrets.POSTGRES_HOST }}" >> .env
+          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
+          echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env
 
-    - name: Build and push Docker image
-      run: |
-        docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook:latest .
-        docker push ${{ secrets.DOCKER_USERNAME }}/friendbook:latest
+      - name: Build and push Docker image
+        uses: docker/setup-buildx-action@v2
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook:latest .
+          docker push ${{ secrets.DOCKER_USERNAME }}/friendbook:latest
 
-    - name: Setup SSH
-      run: |
-        mkdir -p ~/.ssh/
-        echo "${{ secrets.AWS_EC2_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H ${{ secrets.AWS_EC2_IP }} >> ~/.ssh/known_hosts
+      - name: Setup SSH and Deploy to EC2
+        env:
+          EC2_PEM_KEY: ${{ secrets.EC2_PEM_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          # Create SSH key file
+          echo "$EC2_PEM_KEY" > ec2-key.pem
+          chmod 600 ec2-key.pem
 
-    - name: Setup .env
-      run: |
-        cat <<EOF > .env
-        GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-        AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        DATABASE_URL=${{ secrets.DATABASE_URL }}
-        DEBUG=${{ secrets.DEBUG }}
-        EC2_USER=${{ secrets.EC2_USER }}
-        FRONT_END=${{ secrets.FRONT_END }}
-        GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-        POSTGRES_DB=${{ secrets.POSTGRES_DB }}
-        POSTGRES_HOST=${{ secrets.POSTGRES_HOST }}
-        POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-        POSTGRES_USER=${{ secrets.POSTGRES_USER }}
-        EOF
+          # Connect to EC2 instance and deploy
+          ssh -o StrictHostKeyChecking=no -i ec2-key.pem "$EC2_USER@$EC2_HOST" << EOF
+            # Export environment variables
+            export DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
+            export DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Deploy on AWS EC2
-      run: |
-        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.AWS_EC2_IP }} << EOF
-          docker login -u '${{ secrets.DOCKER_USERNAME }}' -p '${{ secrets.DOCKER_PASSWORD }}'
-          docker pull ${DOCKER_USERNAME}/friendbook:latest
-          docker pull redis:latest
-          
-          # Stop and remove existing containers if they exist
-          docker stop friendbook celery celery-beat redis || true
-          docker rm friendbook celery celery-beat redis || true
-          
-          # Run containers
-          docker run -d --name redis redis:latest
-          docker run -d --name friendbook -p 80:8000 --link redis ${DOCKER_USERNAME}/friendbook:latest
-          docker run -d --name celery --link redis --link friendbook ${DOCKER_USERNAME}/friendbook:latest celery -A mysite worker -l info
-          docker run -d --name celery-beat --link redis --link friendbook ${DOCKER_USERNAME}/friendbook:latest celery -A mysite beat -l info
-        EOF
+            # Docker login
+            echo "$DOCKER_PASSWORD" | sudo docker login -u "$DOCKER_USERNAME" --password-stdin
+            
+            # Pull latest Docker images
+            docker pull $DOCKER_USERNAME/friendbook:latest
+            docker pull redis:latest
+
+            # Stop and remove existing containers
+            docker stop friendbook celery celery-beat redis || true
+            docker rm friendbook celery celery-beat redis || true
+
+            # Run Redis container
+            docker run -d --name redis redis:latest
+
+            # Run Django application
+            docker run -d --name friendbook -p 80:8000 --link redis $DOCKER_USERNAME/friendbook:latest
+
+            # Run Celery worker
+            docker run -d --name celery --link redis --link friendbook $DOCKER_USERNAME/friendbook:latest celery -A mysite worker -l info
+
+            # Run Celery Beat scheduler
+            docker run -d --name celery-beat --link redis --link friendbook $DOCKER_USERNAME/friendbook:latest celery -A mysite beat -l info
+          EOF
+
+      - name: Clean Up
+        run: rm -f ec2-key.pem
