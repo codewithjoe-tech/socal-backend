@@ -18,7 +18,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 DEBUG = True
 
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ["friendbook.api.codewithjoe.in"]
 
 
 
@@ -94,6 +94,10 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+CORS_ALLOWED_ORIGINS = [
+    'https://friendbook.api.codewithjoe.in', 
+]
 CORS_ALLOW_ALL_ORIGINS=True
 ROOT_URLCONF = 'mysite.urls'
 
@@ -150,7 +154,7 @@ DATABASES = {
     )
 }
 
-# Fallback to manual settings if `DATABASE_URL` is not provided
+
 if not DATABASES['default']:
     DATABASES = {
         'default': {
