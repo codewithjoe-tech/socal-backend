@@ -56,41 +56,38 @@ jobs:
           # Create SSH key file
           echo "$EC2_PEM_KEY" > ec2-key.pem
           chmod 600 ec2-key.pem
-
+      
           # Connect to EC2 instance and deploy
           ssh -o StrictHostKeyChecking=no -i ec2-key.pem "$EC2_USER@$EC2_HOST" << EOF
             set -e
             echo "Starting deployment on EC2..."
-
+      
             # Docker login
             echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-
-            # Pull latest images
+      
+            # Pull the latest Docker images
             docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
             docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
             docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_celery_beat:latest
-
-            # Stop and remove existing containers if they are running
-            docker stop friendbook_web friendbook_celery friendbook_celery_beat || true
-            docker rm friendbook_web friendbook_celery friendbook_celery_beat || true
-
+      
             # Run Django web container
-            docker run -d --name friendbook_web -p 80:8000 \
+            echo "Starting Django container..."
+            docker run -d --rm --name friendbook_web -p 80:8000 \
               --env-file .env \
               ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
-
+      
             # Run Celery worker container
-            docker run -d --name friendbook_celery \
+            echo "Starting Celery worker container..."
+            docker run -d --rm --name friendbook_celery \
               --env-file .env \
               ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
-
+      
             # Run Celery Beat container
-            docker run -d --name friendbook_celery_beat \
+            echo "Starting Celery Beat container..."
+            docker run -d --rm --name friendbook_celery_beat \
               --env-file .env \
               ${{ secrets.DOCKER_USERNAME }}/friendbook_celery_beat:latest
-
+      
             echo "Deployment complete!"
           EOF
-
-      - name: Clean Up
-        run: rm -f ec2-key.pem
+      
