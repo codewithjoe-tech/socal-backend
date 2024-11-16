@@ -44,8 +44,7 @@ jobs:
           docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest --build-arg SERVICE=celery .
           docker push ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
 
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook_celery_beat:latest --build-arg SERVICE=celery-beat .
-          docker push ${{ secrets.DOCKER_USERNAME }}/friendbook_celery_beat:latest
+
 
       - name: Deploy to EC2 using Docker Run
         env:
@@ -86,13 +85,6 @@ jobs:
               --env-file .env \
               ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest \
               celery -A mysite worker --loglevel=info
-
-            # Run Celery Beat container
-            echo "Starting Celery Beat container..."
-            docker run -d --rm --name friendbook_celery_beat \
-              --env-file .env \
-              ${{ secrets.DOCKER_USERNAME }}/friendbook_celery_beat:latest \
-              celery -A mysite beat --loglevel=info
 
             echo "Deployment complete!"
           EOF
