@@ -1,9 +1,9 @@
-name: Deploy Django App to AWS EC2
+name: Deploy Store Hub API to AWS EC2
 
 on:
   push:
     branches:
-      - main  # Trigger deployment on pushes to the main branch
+      - main
 
 jobs:
   deploy:
@@ -13,80 +13,54 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.11'
+          node-version: '20.16'
 
-      - name: Create .env File from Secrets
-        run: |
-          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" > .env
-          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
-          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
-          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
-          echo "DEBUG=${{ secrets.DEBUG }}" >> .env
-          echo "EC2_USER=${{ secrets.EC2_USER }}" >> .env
-          echo "FRONT_END=${{ secrets.FRONT_END }}" >> .env
-          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
-          echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env
-          echo "POSTGRES_HOST=${{ secrets.POSTGRES_HOST }}" >> .env
-          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
-          echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env
+      - name: Install Dependencies
+        run: npm install
 
-      - name: Build and push Docker image
-        uses: docker/setup-buildx-action@v2
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Build and Push Docker Image
-        run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook:latest .
-          docker push ${{ secrets.DOCKER_USERNAME }}/friendbook:latest
+      - name: Compile TS to JS
+        run: npm run tsc || true
 
-      - name: Setup SSH and Deploy to EC2
+      - name: Upload to S3
         env:
-          EC2_PEM_KEY: ${{ secrets.AWS_EC2_KEY }}
-          EC2_HOST: ${{ secrets.AWS_EC2_IP }}
-          EC2_USER: ${{ secrets.EC2_USER }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}  # Add your region secret here
         run: |
-          # Create SSH key file
-          echo "$EC2_PEM_KEY" > ec2-key.pem
+          echo "S3_BUCKET: $S3_BUCKET"  # Debugging line
+          aws s3 sync ./dist s3://$S3_BUCKET/storehub-api/ --delete --region $AWS_REGION
+
+      - name: Deploy Files from S3 to EC2
+        env:
+          PEM_KEY: ${{ secrets.EC2_PEM_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          APP_DIRECTORY: "/home/${{ secrets.EC2_USER }}/storehub-api/dist"
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          echo "$PEM_KEY" > ec2-key.pem
           chmod 600 ec2-key.pem
-      
-          # Connect to EC2 instance and deploy
-          ssh -o StrictHostKeyChecking=no -i ec2-key.pem "$EC2_USER@$EC2_HOST" << 'EOF'
-            set -e  # Exit on any error
-            echo "Starting deployment on EC2..."
-      
-            # Export environment variables
-            export DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
-            export DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD }}
-      
-            # Docker login
-            echo "$DOCKER_PASSWORD" | sudo docker login -u "$DOCKER_USERNAME" --password-stdin
-      
-            # Pull latest Docker images
-            docker pull $DOCKER_USERNAME/friendbook:latest
-      
-            # Stop and remove existing containers if they exist
-            if [ "$(docker ps -aq -f name=friendbook)" ]; then
-              echo "Stopping and removing existing container: friendbook"
-              docker stop friendbook || true
-              docker rm friendbook || true
-            else
-              echo "No existing container found for: friendbook"
-            fi
-      
-            # Run Django application
-            echo "Starting Django container..."
-            docker run -d --name friendbook -p 80:8000 $DOCKER_USERNAME/friendbook:latest
-      
-            echo "Deployment complete!"
-          EOF
-        
+
+          # Sync from S3 to EC2
+          ssh -o StrictHostKeyChecking=no -i ec2-key.pem "$EC2_USER@$EC2_HOST" "
+          export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}; 
+          export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}; 
+          aws s3 sync s3://$S3_BUCKET/storehub-api/ $APP_DIRECTORY/ --delete --region $AWS_REGION"
+
+          # Copy package.json only if it has changed
+          scp -o StrictHostKeyChecking=no -i ec2-key.pem ./package.json "$EC2_USER@$EC2_HOST:/home/${{ secrets.EC2_USER }}/storehub-api/"
+          ssh -o StrictHostKeyChecking=no -i ec2-key.pem "$EC2_USER@$EC2_HOST" "source ~/.nvm/nvm.sh && cd /home/${{ secrets.EC2_USER }}/storehub-api && npm install"
+
+          # Copy pm2 config and restart the app
+          scp -o StrictHostKeyChecking=no -i ec2-key.pem ./ecosystem.config.cjs "$EC2_USER@$EC2_HOST:/home/${{ secrets.EC2_USER }}/storehub-api/"
+          ssh -o StrictHostKeyChecking=no -i ec2-key.pem "$EC2_USER@$EC2_HOST" "source ~/.nvm/nvm.sh && pm2 restart api"
+
       - name: Clean Up
         run: rm -f ec2-key.pem
