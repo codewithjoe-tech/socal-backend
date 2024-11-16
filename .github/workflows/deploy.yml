@@ -71,38 +71,22 @@ jobs:
       
             # Pull latest Docker images
             docker pull $DOCKER_USERNAME/friendbook:latest
-            docker pull redis:latest
       
             # Stop and remove existing containers if they exist
-            for container in friendbook celery celery-beat redis; do
-              if [ "$(docker ps -aq -f name=$container)" ]; then
-                echo "Stopping and removing existing container: $container"
-                docker stop $container || true
-                docker rm $container || true
-              else
-                echo "No existing container found for: $container"
-              fi
-            done
-      
-            # Run Redis container
-            echo "Starting Redis container..."
-            docker run -d --name redis redis:latest
+            if [ "$(docker ps -aq -f name=friendbook)" ]; then
+              echo "Stopping and removing existing container: friendbook"
+              docker stop friendbook || true
+              docker rm friendbook || true
+            else
+              echo "No existing container found for: friendbook"
+            fi
       
             # Run Django application
             echo "Starting Django container..."
-            docker run -d --name friendbook -p 80:8000 --link redis $DOCKER_USERNAME/friendbook:latest
-      
-            # Run Celery worker
-            echo "Starting Celery worker..."
-            docker run -d --name celery --link redis --link friendbook $DOCKER_USERNAME/friendbook:latest celery -A mysite worker -l info
-      
-            # Run Celery Beat scheduler
-            echo "Starting Celery Beat scheduler..."
-            docker run -d --name celery-beat --link redis --link friendbook $DOCKER_USERNAME/friendbook:latest celery -A mysite beat -l info
+            docker run -d --name friendbook -p 80:8000 $DOCKER_USERNAME/friendbook:latest
       
             echo "Deployment complete!"
           EOF
         
       - name: Clean Up
         run: rm -f ec2-key.pem
-        
