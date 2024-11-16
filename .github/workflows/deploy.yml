@@ -66,8 +66,7 @@ jobs:
             # Pull the latest Docker images
             docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
             docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
-            docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_celery_beat:latest
-      
+           
             # Run Django web container
             echo "Starting Django container..."
             docker run -d --rm --name friendbook_web -p 80:8000 \
@@ -80,11 +79,7 @@ jobs:
               --env-file .env \
               ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
       
-            # Run Celery Beat container
-            echo "Starting Celery Beat container..."
-            docker run -d --rm --name friendbook_celery_beat \
-              --env-file .env \
-              ${{ secrets.DOCKER_USERNAME }}/friendbook_celery_beat:latest
+            
       
             echo "Deployment complete!"
           EOF
