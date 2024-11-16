@@ -36,11 +36,13 @@ jobs:
 
       - name: Build and push Docker image
         uses: docker/setup-buildx-action@v2
+
       - name: Login to DockerHub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+
       - name: Build and Push Docker Image
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook:latest .
@@ -70,27 +72,25 @@ jobs:
             # Docker login
             echo "$DOCKER_PASSWORD" | sudo docker login -u "$DOCKER_USERNAME" --password-stdin
       
-            # Pull latest Docker images
+            # Clean up unused Docker images and containers before deployment
+            echo "Cleaning up old Docker containers and images..."
+            # Stop and remove existing container if running
+            docker stop friendbook || true
+            docker rm friendbook || true
+          
+            # Remove old Docker images to free up space
+            docker rmi $DOCKER_USERNAME/friendbook:latest || true
+            docker system prune -af --volumes || true  # Remove unused volumes, images, and stopped containers
+      
+            # Pull the latest Docker image
             docker pull $DOCKER_USERNAME/friendbook:latest
-          
-          # Stop and remove existing containers if they exist
-            docker stop friendbook
-            docker rm friendbook
-      
-            # Run Django application
-            echo "Starting Django container..."
-            # Stop and remove existing containers if they exist
-            
-          
-            # Run Django application
-            echo "Starting Django container..."
-            docker run -d --name friendbook -p 80:8000  $DOCKER_USERNAME/friendbook:latest
-      
-          
-      
+
+            # Run the new container
+            echo "Starting the new Django container..."
+            docker run -d --name friendbook -p 80:8000 $DOCKER_USERNAME/friendbook:latest
+
             echo "Deployment complete!"
           EOF
-        
+
       - name: Clean Up
         run: rm -f ec2-key.pem
-        
