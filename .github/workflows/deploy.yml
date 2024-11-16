@@ -72,7 +72,12 @@ jobs:
             # Pull latest Docker images
             docker pull $DOCKER_USERNAME/friendbook:latest
           
+          # Stop and remove existing containers if they exist
+            docker stop friendbook
+            docker rm friendbook
       
+            # Run Django application
+            echo "Starting Django container..."
             # Stop and remove existing containers if they exist
             
           
