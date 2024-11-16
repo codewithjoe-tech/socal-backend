@@ -1,20 +1,18 @@
 version: '3.8'
 
 services:
-  # Django web service with Daphne
   web:
     build: .
-    command: daphne -b 0.0.0.0 -p 8000 mysite.asgi:application  
+    command: daphne -b 0.0.0.0 -p 8000 mysite.asgi:application
     volumes:
       - .:/app
     ports:
       - "8000:8000"
     environment:
       - DEBUG=True
-      - DJANGO_SETTINGS_MODULE=mysite.settings  
+      - DJANGO_SETTINGS_MODULE=mysite.settings
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - CHANNEL_LAYERS=channels_redis.core.RedisChannelLayer
     depends_on:
       - redis
 
@@ -23,7 +21,6 @@ services:
     ports:
       - "6379:6379"
 
-  # Celery worker service
   celery:
     build: .
     command: celery -A mysite worker --loglevel=info
@@ -36,7 +33,6 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
 
-  # Celery beat scheduler service
   celery-beat:
     build: .
     command: celery -A mysite beat --loglevel=info

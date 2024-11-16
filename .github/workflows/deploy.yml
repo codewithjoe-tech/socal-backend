@@ -38,7 +38,7 @@ jobs:
       - name: Build and Push Docker Images
         run: |
           # Build and push images for each service
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest .
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest --build-arg SERVICE=web .
           docker push ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
 
           docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest --build-arg SERVICE=celery .
@@ -75,7 +75,6 @@ jobs:
             docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
             docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_celery_beat:latest
 
-            # Run Django web container
             echo "Starting Django container..."
             docker run -d --rm --name friendbook_web -p 80:8000 \
               --env-file .env \
@@ -85,13 +84,15 @@ jobs:
             echo "Starting Celery worker container..."
             docker run -d --rm --name friendbook_celery \
               --env-file .env \
-              ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
+              ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest \
+              celery -A mysite worker --loglevel=info
 
             # Run Celery Beat container
             echo "Starting Celery Beat container..."
             docker run -d --rm --name friendbook_celery_beat \
               --env-file .env \
-              ${{ secrets.DOCKER_USERNAME }}/friendbook_celery_beat:latest
+              ${{ secrets.DOCKER_USERNAME }}/friendbook_celery_beat:latest \
+              celery -A mysite beat --loglevel=info
 
             echo "Deployment complete!"
           EOF
