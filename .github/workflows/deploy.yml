@@ -76,7 +76,7 @@ jobs:
             docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_celery_beat:latest
 
             echo "Starting Django container..."
-            docker run -d --rm --name friendbook_web -p 80:8000 \
+            docker run -d --rm --name friendbook_web -p 8000:8000 \
               --env-file .env \
               ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
 

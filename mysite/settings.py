@@ -117,6 +117,9 @@ TEMPLATES = [
     },
 ]
 
+SECURE_SSL_REDIRECT = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 AUTHENTICATION_BACKENDS = [
     'UserManagement.custom_authenticate.EmailorUsernameValidate',
     'django.contrib.auth.backends.ModelBackend',
