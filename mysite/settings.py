@@ -15,10 +15,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 
-DEBUG = False
+DEBUG = True
 
 
-ALLOWED_HOSTS = ["friendbook.api.codewithjoe.in" , '65.0.108.213' , 'localhost' , '127.0.0.1']
+ALLOWED_HOSTS = ["friendbook.api.codewithjoe.in"]
 
 
 
@@ -76,27 +76,18 @@ LOGGING = {
     },
 }
 
-DATA_UPLOAD_MAX_MEMORY_SIZE = 26214400  # 25 MB
-FILE_UPLOAD_MAX_MEMORY_SIZE = 26214400  # 25 MB
-
-
-CORS_ALLOW_CREDENTIALS = True
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 7000
 
 CSRF_TRUSTED_ORIGINS = ['http://localhost:5173']
 DATASET_DIR = os.path.join(BASE_DIR, 'data')
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Add the URL of your frontend
-    "https://friendbook.api.codewithjoe.in",  # Optional: add production URL if needed
-]
-# SECURE_SSL_REDIRECT = True
 
 AUTH_USER_MODEL = 'UserManagement.User'
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+     "corsheaders.middleware.CorsMiddleware",
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -104,21 +95,9 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-
-CORS_ALLOW_ALL_ORIGINS=False
+CORS_ALLOW_ALL_ORIGINS=True
 ROOT_URLCONF = 'mysite.urls'
-# CORS_ALLOW_METHODS = [
-#     'GET',
-#     'POST',
-#     'PUT',
-#     'DELETE',
-#     'OPTIONS',
-# ]
 
-CORS_ALLOW_HEADERS = [
-    'Authorization',
-    'Content-Type',
-]
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
