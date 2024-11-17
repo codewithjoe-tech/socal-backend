@@ -15,7 +15,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 
-DEBUG = True
+DEBUG = False
 
 
 ALLOWED_HOSTS = ["friendbook.api.codewithjoe.in" , '65.0.108.213' , 'localhost' , '127.0.0.1']
@@ -107,13 +107,13 @@ MIDDLEWARE = [
 
 CORS_ALLOW_ALL_ORIGINS=False
 ROOT_URLCONF = 'mysite.urls'
-CORS_ALLOW_METHODS = [
-    'GET',
-    'POST',
-    'PUT',
-    'DELETE',
-    'OPTIONS',
-]
+# CORS_ALLOW_METHODS = [
+#     'GET',
+#     'POST',
+#     'PUT',
+#     'DELETE',
+#     'OPTIONS',
+# ]
 
 CORS_ALLOW_HEADERS = [
     'Authorization',
