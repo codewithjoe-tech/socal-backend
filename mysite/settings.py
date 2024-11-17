@@ -82,7 +82,10 @@ CSRF_TRUSTED_ORIGINS = ['http://localhost:5173']
 DATASET_DIR = os.path.join(BASE_DIR, 'data')
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
-
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # Add the URL of your frontend
+    "https://friendbook.api.codewithjoe.in",  # Optional: add production URL if needed
+]
 AUTH_USER_MODEL = 'UserManagement.User'
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -96,7 +99,7 @@ MIDDLEWARE = [
 ]
 
 
-CORS_ALLOW_ALL_ORIGINS=True
+# CORS_ALLOW_ALL_ORIGINS=True
 ROOT_URLCONF = 'mysite.urls'
 
 TEMPLATES = [
