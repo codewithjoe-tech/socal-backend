@@ -18,7 +18,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 DEBUG = True
 
 
-ALLOWED_HOSTS = ["friendbook.api.codewithjoe.in"]
+ALLOWED_HOSTS = ["friendbook.api.codewithjoe.in" , '65.0.108.213']
 
 
 
@@ -78,7 +78,7 @@ LOGGING = {
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 7000
 
-CSRF_TRUSTED_ORIGINS = ['http://localhost:5173']
+# CSRF_TRUSTED_ORIGINS = ['http://localhost:5173']
 DATASET_DIR = os.path.join(BASE_DIR, 'data')
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
@@ -130,6 +130,9 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ),
 }
+
+# Allow credentials
+CORS_ALLOW_CREDENTIALS = True
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
