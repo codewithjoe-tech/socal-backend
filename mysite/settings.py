@@ -20,7 +20,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 DEBUG = True
 
 
-ALLOWED_HOSTS = ["friendbook.codewithjoe.in" , '65.0.108.213']
+ALLOWED_HOSTS = ["friendbook.api.codewithjoe.in" , '65.0.108.213' , 'friendbook.codewithjoe.in']
 
 
 
