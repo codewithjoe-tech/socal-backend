@@ -90,6 +90,7 @@ class GoogleCallback(PublicApi):
             "grant_type":"authorization_code"
         }
         token_response = requests.post(token_url,data=token_data)
+        print(token_response)
         token_json = token_response.json()
         access_token = token_json.get('access_token')
 
