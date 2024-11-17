@@ -20,7 +20,7 @@ from .tasks import send_mails_to_users
 
 load_dotenv()
 
-frontend = os.getenv('FRONT_END')
+frontend = "https://friendbook-frontend-mu.vercel.app"
 User = get_user_model()
 
 class PublicApi(APIView):
