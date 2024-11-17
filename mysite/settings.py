@@ -90,7 +90,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Add the URL of your frontend
     "https://friendbook.api.codewithjoe.in",  # Optional: add production URL if needed
 ]
-SECURE_SSL_REDIRECT = True
+# SECURE_SSL_REDIRECT = True
 
 AUTH_USER_MODEL = 'UserManagement.User'
 MIDDLEWARE = [
