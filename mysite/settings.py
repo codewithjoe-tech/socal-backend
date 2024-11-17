@@ -20,7 +20,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 DEBUG = True
 
 
-ALLOWED_HOSTS = ["friendbook.api.codewithjoe.in" , '65.0.108.213']
+ALLOWED_HOSTS = ["friendbook.codewithjoe.in" , '65.0.108.213']
 
 
 
@@ -78,7 +78,6 @@ LOGGING = {
     },
 }
 
-DATA_UPLOAD_MAX_NUMBER_FIELDS = 7000
 
 # CSRF_TRUSTED_ORIGINS = ['http://localhost:5173']
 DATASET_DIR = os.path.join(BASE_DIR, 'data')
