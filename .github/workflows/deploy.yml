@@ -68,7 +68,7 @@ jobs:
             docker rm -f friendbook_web || true
             docker rm -f friendbook_celery || true
             docker rm -f friendbook_celery_beat || true
-            docker system prune -a
+            docker system prune -a -f
 
             # Pull the latest Docker images
             docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
