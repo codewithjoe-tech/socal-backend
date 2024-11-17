@@ -95,9 +95,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# CORS_ALLOWED_ORIGINS = [
-#     'https://friendbook.api.codewithjoe.in', 
-# ]
+
 CORS_ALLOW_ALL_ORIGINS=True
 ROOT_URLCONF = 'mysite.urls'
 
@@ -116,10 +114,6 @@ TEMPLATES = [
         },
     },
 ]
-
-SECURE_SSL_REDIRECT = True
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-CORS_ALLOW_CREDENTIALS = True
 
 AUTHENTICATION_BACKENDS = [
     'UserManagement.custom_authenticate.EmailorUsernameValidate',

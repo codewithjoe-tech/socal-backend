@@ -77,12 +77,13 @@ class GoogleCallback(PublicApi):
         state = request.data.get('state')
         error = request.data.get('error')
         request.session.pop('oauth_token',None)
+        print(code , state)
         print(error)
         if error or not state :
             return Response({'error': 'Authentication failed!'}, status=status.HTTP_400_BAD_REQUEST)
         token_url = "https://oauth2.googleapis.com/token"
         token_data = {
-            ".code":code,
+            "code":code,
             "client_id":settings.GOOGLE_CLIENT_ID,
             "client_secret":settings.GOOGLE_CLIENT_SECRET,
             "redirect_uri":f"{frontend}/auth/google/callback/",
