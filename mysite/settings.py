@@ -94,9 +94,9 @@ SECURE_SSL_REDIRECT = True
 
 AUTH_USER_MODEL = 'UserManagement.User'
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-     "corsheaders.middleware.CorsMiddleware",
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -105,9 +105,20 @@ MIDDLEWARE = [
 ]
 
 
-# CORS_ALLOW_ALL_ORIGINS=True
+CORS_ALLOW_ALL_ORIGINS=False
 ROOT_URLCONF = 'mysite.urls'
+CORS_ALLOW_METHODS = [
+    'GET',
+    'POST',
+    'PUT',
+    'DELETE',
+    'OPTIONS',
+]
 
+CORS_ALLOW_HEADERS = [
+    'Authorization',
+    'Content-Type',
+]
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
