@@ -71,6 +71,7 @@ class GoogleLogin(PublicApi):
         return redirect(url)
 
 
+
 class GoogleCallback(PublicApi):
     def post(self,request, *args,**kwargs):
         code = request.data.get('code')
