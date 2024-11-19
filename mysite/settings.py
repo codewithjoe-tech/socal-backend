@@ -232,8 +232,8 @@ MEDIA_ROOT = BASE_DIR/'media'
 
 # Channels settings
 
-CELERY_BROKER_URL = 'redis://myredis.ojibst.ng.0001.aps1.cache.amazonaws.com:6379/0'
-CELERY_RESULT_BACKEND = 'redis://myredis.ojibst.ng.0001.aps1.cache.amazonaws.com:6379/1'
+CELERY_BROKER_URL = 'redis://myredis-ro.ojibst.ng.0001.aps1.cache.amazonaws.com:6379/0'
+CELERY_RESULT_BACKEND = 'redis://myredis-ro.ojibst.ng.0001.aps1.cache.amazonaws.com:6379/1'
 
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
@@ -249,7 +249,7 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("myredis.ojibst.ng.0001.aps1.cache.amazonaws.com", 6379)],
+            "hosts": [("myredis-ro.ojibst.ng.0001.aps1.cache.amazonaws.com", 6379)],
         },
     },
 }
