@@ -245,11 +245,13 @@ CELERY_TIMEZONE = 'UTC'
 
 ASGI_APPLICATION ='mysite.asgi.application'
 
+# settings.py
+
 CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [("myredis-ro.ojibst.ng.0001.aps1.cache.amazonaws.com", 6379)],
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [("myredis.ojibst.ng.0001.aps1.cache.amazonaws.com", 6379)],
         },
     },
 }
