@@ -231,10 +231,9 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR/'media'
 
 # Channels settings
-# Celery Configuration with SSL
-CELERY_BROKER_URL = 'rediss://default:7x9R4KEuu6xNYjUQpt4u3rhJN6hJHSYv@redis-17824.c330.asia-south1-1.gce.redns.redis-cloud.com:17824/0'
-CELERY_RESULT_BACKEND = 'rediss://default:7x9R4KEuu6xNYjUQpt4u3rhJN6hJHSYv@redis-17824.c330.asia-south1-1.gce.redns.redis-cloud.com:17824/1'
 
+CELERY_BROKER_URL = 'redis://myredis.ojibst.ng.0001.aps1.cache.amazonaws.com:6379/0'
+CELERY_RESULT_BACKEND = 'redis://myredis.ojibst.ng.0001.aps1.cache.amazonaws.com:6379/1'
 
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
@@ -245,24 +244,15 @@ CELERY_TIMEZONE = 'UTC'
 
 
 ASGI_APPLICATION ='mysite.asgi.application'
-# Celery Configuration
 
-# Channels Configuration
-# Channels Configuration with SSL
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [
-                ("redis-17824.c330.asia-south1-1.gce.redns.redis-cloud.com", 17824),
-            ],
-            "password": "7x9R4KEuu6xNYjUQpt4u3rhJN6hJHSYv",  # Add password for secure connection
-            "ssl": True,  # Specify SSL connection
+            "hosts": [("myredis.ojibst.ng.0001.aps1.cache.amazonaws.com", 6379)],
         },
     },
 }
-
-
 
 
 LOGGING = {
