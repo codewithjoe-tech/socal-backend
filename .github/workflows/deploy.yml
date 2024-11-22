@@ -1,4 +1,4 @@
-name: Deploy Django App to AZURE VM
+name: Deploy Django App to Azure VM
 
 on:
   push:
@@ -20,10 +20,20 @@ jobs:
 
       - name: Create .env File from Secrets
         run: |
-          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" > .env
-          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
-          echo "FRONT_END=${{ secrets.FRONT_END }}" >> .env
+          echo "AZURE_ACCOUNT_KEY=${{ secrets.AZURE_ACCOUNT_KEY }}" > .env
+          echo "AZURE_ACCOUNT_NAME=${{ secrets.AZURE_ACCOUNT_NAME }}" >> .env
+          echo "AZURE_CONNECTION_STRING=${{ secrets.AZURE_CONNECTION_STRING }}" >> .env
+          echo "AZURE_MEDIA_CONTAINER=${{ secrets.AZURE_MEDIA_CONTAINER }}" >> .env
+          echo "AZURE_STATIC_CONTAINER=${{ secrets.AZURE_STATIC_CONTAINER }}" >> .env
+          echo "CELERY_BROKER_URL=${{ secrets.CELERY_BROKER_URL }}" >> .env
+          echo "CELERY_RESULT_BACKEND=${{ secrets.CELERY_RESULT_BACKEND }}" >> .env
+          echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
+          echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
+          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+          echo "DB_USER=${{ secrets.DB_USER }}" >> .env
+          echo "DEBUG=${{ secrets.DEBUG }}" >> .env
           echo "DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> .env
+          echo "REDIS_URL=${{ secrets.REDIS_URL }}" >> .env
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -40,20 +50,20 @@ jobs:
           docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest --build-arg SERVICE=celery .
           docker push ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
 
-      - name: Deploy to EC2 using Docker Run
+      - name: Deploy to Azure VM using Docker Run
         env:
-          EC2_PEM_KEY: ${{ secrets.AWS_EC2_KEY }}
-          EC2_HOST: ${{ secrets.AWS_EC2_IP }}
-          EC2_USER: ${{ secrets.EC2_USER }}
+          VM_KEY: ${{ secrets.VM_KEY }}
+          VM_IP: ${{ secrets.VM_IP }}
+          VM_USER: ${{ secrets.VM_USER }}
         run: |
           # Create SSH key file
-          echo "$EC2_PEM_KEY" > ec2-key.pem
-          chmod 600 ec2-key.pem
+          echo "$VM_KEY" > azure-vm-key.pem
+          chmod 600 azure-vm-key.pem
 
-          # Connect to EC2 instance and deploy
-          ssh -o StrictHostKeyChecking=no -i ec2-key.pem "$EC2_USER@$EC2_HOST" << EOF
+          # Connect to Azure VM instance and deploy
+          ssh -o StrictHostKeyChecking=no -i azure-vm-key.pem "$VM_USER@$VM_IP" << EOF
             set -e
-            echo "Starting deployment on EC2..."
+            echo "Starting deployment on Azure VM..."
 
             # Docker login
             echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
@@ -78,8 +88,7 @@ jobs:
             docker run -d --rm --name friendbook_celery \
               --env-file .env \
               ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest \
-              celery -A mysite worker --loglevel=info --concurrency=2
-
+              celery -A mysite worker --loglevel=info
 
             echo "Deployment complete!"
           EOF
