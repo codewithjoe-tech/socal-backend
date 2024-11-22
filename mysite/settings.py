@@ -168,14 +168,13 @@ CELERY_RESULT_SERIALIZER = 'json'  # Use JSON for serializing results.
 CELERY_TIMEZONE = 'UTC'  # Set UTC as the timezone.
 
 CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': ["redis://redis:6379/0"],  # Correct Redis host configuration.
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("redis", 6379)],
         },
     },
 }
-
 
 
 SIMPLE_JWT = {
