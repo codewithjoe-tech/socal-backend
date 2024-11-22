@@ -68,33 +68,32 @@ jobs:
               set -e
               echo "Starting deployment on Azure VM..."
 
+
               # Docker login
               echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-
+  
               # Stop and remove existing containers if they exist
               docker rm -f friendbook_web || true
               docker rm -f friendbook_celery || true
-
+          
               docker system prune -a -f
-
+  
               # Pull the latest Docker images
               docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
               docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
-
+              
+  
               echo "Starting Django container..."
               docker run -d --rm --name friendbook_web -p 8000:8000 \
-                --env-file /home/$VM_USER/.env \
+                --env-file .env \
                 ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
-
+  
+              # Run Celery worker container
               echo "Starting Celery worker container..."
               docker run -d --rm --name friendbook_celery \
-                --env-file /home/$VM_USER/.env \
+                --env-file .env \
                 ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest \
-                celery -A mysite worker --loglevel=info 
-
+                celery -A mysite worker --loglevel=info
+  
               echo "Deployment complete!"
             EOF
-
-      - name: Print Frontend URL
-        run: |
-          echo "Frontend URL: ${{ secrets.FRONT_END }}"
