@@ -25,7 +25,6 @@ jobs:
         run: |
           echo "AZURE_ACCOUNT_KEY=${{ secrets.AZURE_ACCOUNT_KEY }}" > .env
           echo "AZURE_ACCOUNT_NAME=${{ secrets.AZURE_ACCOUNT_NAME }}" >> .env
-          echo "AZURE_CONNECTION_STRING=${{ secrets.AZURE_CONNECTION_STRING }}" >> .env
           echo "AZURE_MEDIA_CONTAINER=${{ secrets.AZURE_MEDIA_CONTAINER }}" >> .env
           echo "AZURE_STATIC_CONTAINER=${{ secrets.AZURE_STATIC_CONTAINER }}" >> .env
           echo "CELERY_BROKER_URL=${{ secrets.CELERY_BROKER_URL }}" >> .env
@@ -39,6 +38,7 @@ jobs:
           echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
           echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
           echo "FRONT_END=${{ secrets.FRONT_END }}" >> .env
+          echo "AZURE_CONNECTION_STRING=${{ secrets.AZURE_CONNECTION_STRING }}" >> .env
 
       # Docker login to DockerHub
       - name: Login to DockerHub
