@@ -52,48 +52,52 @@ jobs:
 
       - name: Deploy to Azure VM using Docker Run
         env:
-          VM_KEY: ${{ secrets.VM_KEY }}
-          VM_IP: ${{ secrets.VM_IP }}
-          VM_USER: ${{ secrets.VM_USER }}
+            VM_KEY: ${{ secrets.VM_KEY }}
+            VM_IP: ${{ secrets.VM_IP }}
+            VM_USER: ${{ secrets.VM_USER }}
         run: |
-          # Create SSH key file
-          echo "$VM_KEY" > azure-vm-key.pem
-          chmod 600 azure-vm-key.pem
-
-          # Connect to Azure VM instance and deploy
-          ssh -o StrictHostKeyChecking=no -i azure-vm-key.pem "$VM_USER@$VM_IP" << EOF
-            set -e
-            echo "Starting deployment on Azure VM..."
-
-            # Docker login
-            echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-
-            # Stop and remove existing containers if they exist
-            docker rm -f friendbook_web || true
-            docker rm -f friendbook_celery || true
-
-            docker system prune -a -f
-
-            # Pull the latest Docker images
-            docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
-            docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
-
-            echo "Starting Django container..."
-            docker run -d --rm --name friendbook_web -p 8000:8000 \
-              --env-file .env \
-              ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
-
-            # Run Celery worker container
-            echo "Starting Celery worker container..."
-            docker run -d --rm --name friendbook_celery \
-              --env-file .env \
-              ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest \
-              celery -A mysite worker --loglevel=info --concurrency=2
-
-
-            echo "Deployment complete!"
-          EOF
-
+            # Create SSH key file
+            echo "$VM_KEY" > azure-vm-key.pem
+            chmod 600 azure-vm-key.pem
+        
+            # Transfer the .env file to the Azure VM
+            scp -o StrictHostKeyChecking=no -i azure-vm-key.pem .env "$VM_USER@$VM_IP:/home/$VM_USER/.env"
+        
+            # Connect to Azure VM instance and deploy
+            ssh -o StrictHostKeyChecking=no -i azure-vm-key.pem "$VM_USER@$VM_IP" << EOF
+              set -e
+              echo "Starting deployment on Azure VM..."
+        
+              # Docker login
+              echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+        
+              # Stop and remove existing containers if they exist
+              docker rm -f friendbook_web || true
+              docker rm -f friendbook_celery || true
+        
+              docker system prune -a -f
+        
+              # Pull the latest Docker images
+              docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
+              docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
+        
+              # Use the transferred .env file
+              mv /home/$VM_USER/.env /root/.env
+        
+              echo "Starting Django container..."
+              docker run -d --rm --name friendbook_web -p 8000:8000 \
+                --env-file /root/.env \
+                ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
+        
+              echo "Starting Celery worker container..."
+              docker run -d --rm --name friendbook_celery \
+                --env-file /root/.env \
+                ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest \
+                celery -A mysite worker --loglevel=info --concurrency=2
+        
+              echo "Deployment complete!"
+            EOF
+        
       - name: Print Frontend URL
         run: |
           echo "Frontend URL: ${{ secrets.FRONT_END }}"
