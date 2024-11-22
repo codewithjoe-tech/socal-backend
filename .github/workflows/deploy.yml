@@ -96,4 +96,6 @@ jobs:
                 celery -A mysite worker --loglevel=info
   
               echo "Deployment complete!"
+
+              
             EOF
