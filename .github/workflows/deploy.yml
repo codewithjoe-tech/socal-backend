@@ -36,6 +36,9 @@ jobs:
           echo "DB_USER=${{ secrets.DB_USER }}" >> .env
           echo "DEBUG=${{ secrets.DEBUG }}" >> .env
           echo "DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> .env
+          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
+          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
+          echo "FRONT_END=${{ secrets.FRONT_END }}" >> .env
 
       # Docker login to DockerHub
       - name: Login to DockerHub
