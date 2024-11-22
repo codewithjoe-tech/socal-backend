@@ -85,34 +85,43 @@ def recommend_reels_for_user(profile_id):
     recommendation.save()
     return f'Reel recommendations generated for profile {profile_id} successfully!'
 
-import boto3
+from azure.storage.blob import BlobServiceClient, BlobClient
 import tempfile
-
-s3_client = boto3.client('s3')
 
 
 @shared_task
 def generate_thumbnail_for_reel(reel_id):
+    
+
     reel = Reels.objects.get(id=reel_id)
     if not reel.video or reel.thumbnail:
         return
 
-    bucket_name = settings.AWS_STORAGE_BUCKET_NAME
-    video_key = reel.video.name
+    connection_string = settings.AZURE_CONNECTION_STRING
+    container_name = settings.AZURE_MEDIA_CONTAINER
+
+    video_blob_name = reel.video.name 
 
     with tempfile.NamedTemporaryFile(suffix='.mp4') as temp_video_file, tempfile.NamedTemporaryFile(suffix='.jpg') as temp_thumbnail_file:
         try:
-            s3_client.download_file(bucket_name, video_key, temp_video_file.name)
+            blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+            blob_client = blob_service_client.get_blob_client(container=container_name, blob=video_blob_name)
+
+            with open(temp_video_file.name, "wb") as video_file:
+                video_file.write(blob_client.download_blob().readall())
+
             ffmpeg.input(temp_video_file.name, ss=1).output(
                 temp_thumbnail_file.name, vframes=1, pix_fmt='yuv420p', update=True
             ).overwrite_output().run()
+
             with open(temp_thumbnail_file.name, 'rb') as f:
                 thumbnail_content = ContentFile(f.read())
-                reel.thumbnail.save(f'{reel_id}_thumbnail.jpg', thumbnail_content, save=True)
-        except ffmpeg.Error as e:
-            error_message = e.stderr.decode() if e.stderr else 'Unknown error'
-            print(f'FFmpeg error for reel {reel_id}: {error_message}')
-            raise RuntimeError('Thumbnail generation failed')
+
+            reel.thumbnail.save(f'{reel_id}_thumbnail.jpg', thumbnail_content, save=True)
+
+        except Exception as e:
+            print(f"Error generating thumbnail for reel {reel_id}: {str(e)}")
+            raise
 
 @shared_task
 def generate_thumbnails():

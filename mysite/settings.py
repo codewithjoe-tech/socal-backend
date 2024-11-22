@@ -1,26 +1,18 @@
-
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
 import os
 
-
 load_dotenv()
-
-
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
+DEBUG = os.getenv('DEBUG') == 'true' 
 
-DEBUG = True
-
-
-ALLOWED_HOSTS = ["friendbook.api.codewithjoe.in" , '13.203.74.24' , 'friendbook.codewithjoe.in']
-
-
+ALLOWED_HOSTS = ["friendbook.api.codewithjoe.in", '13.203.74.24', 'friendbook.codewithjoe.in', "*"]
+AUTH_USER_MODEL = 'UserManagement.User'
 
 INSTALLED_APPS = [
     "corsheaders",
@@ -33,7 +25,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-
     # External Apps
     'rest_framework_simplejwt',
     'rest_framework',
@@ -45,9 +36,7 @@ INSTALLED_APPS = [
     "Profiles",
     "AdminPanel",
     'ReportApp',
-    "Chat"
-
-
+    "Chat",
 ]
 
 LOGGING = {
@@ -58,35 +47,18 @@ LOGGING = {
             'class': 'logging.StreamHandler',
         },
     },
-    'root': {
-        'handlers': ['console'],
-        'level': 'INFO',
-    },
     'loggers': {
         'django': {
             'handlers': ['console'],
             'level': 'INFO',
-            'propagate': False,
-        },
-        'Profiles': {  
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
         },
     },
 }
 
-
-# CSRF_TRUSTED_ORIGINS = ['http://localhost:5173']
-DATASET_DIR = os.path.join(BASE_DIR, 'data')
-GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
-GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
-
-AUTH_USER_MODEL = 'UserManagement.User'
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-     "corsheaders.middleware.CorsMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -94,8 +66,9 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 
-CORS_ALLOW_ALL_ORIGINS=True
 ROOT_URLCONF = 'mysite.urls'
 
 TEMPLATES = [
@@ -120,6 +93,8 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 WSGI_APPLICATION = 'mysite.wsgi.application'
+ASGI_APPLICATION = 'mysite.asgi.application'
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.SessionAuthentication',
@@ -130,149 +105,76 @@ REST_FRAMEWORK = {
     ),
 }
 
-# Allow credentials
-CORS_ALLOW_CREDENTIALS = True
-
-# Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
-# if DEBUG:
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-# else:
-import dj_database_url
-
 DATABASES = {
-    'default': dj_database_url.config(
-        default='postgres://postgres:Sneha1103@friendbook.c5mo06meke7e.ap-south-1.rds.amazonaws.com:5432/friendbook_db',
-        engine='django.db.backends.postgresql',
-        conn_max_age=600
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
+        'PORT': '5432',
+        'OPTIONS': {
+            'sslmode': 'require',
+        },
+    }
 }
 
-
-if not DATABASES['default']:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('POSTGRES_DB', 'friendbook_db'),
-            'USER': os.getenv('POSTGRES_USER', 'postgres'),
-            'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'Sneha1103'),
-            'HOST': os.getenv('POSTGRES_HOST', 'friendbook.c5mo06meke7e.ap-south-1.rds.amazonaws.com'),
-            'PORT': '5432',
-        }
-    }
-
-
-# Password validation
-# https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
+DATASET_DIR = os.path.join(BASE_DIR , 'data')
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
-
-
-AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY =os.getenv('AWS_SECRET_ACCESS_KEY')
-
-
-
-AWS_STORAGE_BUCKET_NAME = 'friendbook-bkt'
-AWS_S3_CUSTOM_DOMAIN = '%s.s3.amazonaws.com' %AWS_STORAGE_BUCKET_NAME
-AWS_S3_FILE_OVERWRITE = False
-STORAGES = {
-
-    "default": {
-        "BACKEND": "storages.backends.s3boto3.S3StaticStorage",
-    },
-    
-    "staticfiles": {
-        "BACKEND": "storages.backends.s3boto3.S3StaticStorage",
-    },
-}
-
-# Internationalization
-# https://docs.djangoproject.com/en/5.1/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
 
+# Azure storage settings
+AZURE_ACCOUNT_KEY = os.getenv('AZURE_ACCOUNT_KEY')
+AZURE_ACCOUNT_NAME = os.getenv('AZURE_ACCOUNT_NAME', 'friendbookstorage')
+AZURE_STATIC_CONTAINER = 'static'
+AZURE_MEDIA_CONTAINER = 'media'
+AZURE_CONNECTION_STRING = os.getenv('AZURE_CONNECTION_STRING')
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
+AZURE_CUSTOM_DOMAIN = f"{AZURE_ACCOUNT_NAME}.blob.core.windows.net"
 
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [
-    BASE_DIR/'static'
-]
+# Media files configuration
+DEFAULT_FILE_STORAGE = 'mysite.storage_backends.CustomAzureMediaStorage'
+MEDIA_URL = f"https://{AZURE_CUSTOM_DOMAIN}/{AZURE_MEDIA_CONTAINER}/"
 
-MEDIA_URL = '/media/'
+# Static files configuration
+STATICFILES_STORAGE = 'mysite.storage_backends.CustomAzureStaticStorage'
+STATIC_URL = f"https://{AZURE_CUSTOM_DOMAIN}/{AZURE_STATIC_CONTAINER}/"
 
-MEDIA_ROOT = BASE_DIR/'media'
 
-# Channels settings
 
-CELERY_BROKER_URL = 'redis://myredis-ro.ojibst.ng.0001.aps1.cache.amazonaws.com:6379/0'
-CELERY_RESULT_BACKEND = 'redis://myredis-ro.ojibst.ng.0001.aps1.cache.amazonaws.com:6379/1'
+
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND')
 
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 
+import os
 
-
-
-ASGI_APPLICATION ='mysite.asgi.application'
-
-# settings.py
+import os
 
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            "hosts": [("myredis.ojibst.ng.0001.aps1.cache.amazonaws.com", 6379)],
+            'hosts': [os.getenv("REDIS_URL")],
         },
     },
 }
 
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-        },
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-        },
-    },
-}
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 SIMPLE_JWT = {
@@ -282,15 +184,11 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
 }
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
-
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'codewithjoe16@gmail.com'
 EMAIL_HOST_PASSWORD = 'uhwj zzog jevi qryv'
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
