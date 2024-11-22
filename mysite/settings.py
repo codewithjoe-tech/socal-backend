@@ -87,6 +87,12 @@ TEMPLATES = [
     },
 ]
 
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://friendbook.api.codewithjoe.in"
+]
+
+
 AUTHENTICATION_BACKENDS = [
     'UserManagement.custom_authenticate.EmailorUsernameValidate',
     'django.contrib.auth.backends.ModelBackend',
