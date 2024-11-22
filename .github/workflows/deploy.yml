@@ -18,6 +18,12 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+          docker-compose --version
+
       - name: Create .env File from Secrets
         run: |
           cat << EOF > .env
@@ -57,7 +63,6 @@ jobs:
           echo "$VM_KEY" > azure-vm-key.pem
           chmod 600 azure-vm-key.pem
 
-            docker system prune -a -f
           # Transfer required files
           scp -o StrictHostKeyChecking=no -i azure-vm-key.pem .env docker-compose.yml "$VM_USER@$VM_IP:/home/$VM_USER/"
 
