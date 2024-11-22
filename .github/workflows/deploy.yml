@@ -90,7 +90,7 @@ jobs:
               docker run -d --rm --name friendbook_celery \
                 --env-file /home/$VM_USER/.env \
                 ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest \
-                celery -A mysite worker --loglevel=info --concurrency=2
+                celery -A mysite worker --loglevel=info 
 
               echo "Deployment complete!"
             EOF
