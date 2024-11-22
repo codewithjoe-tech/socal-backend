@@ -159,23 +159,22 @@ STATIC_URL = f"https://{AZURE_CUSTOM_DOMAIN}/{AZURE_STATIC_CONTAINER}/"
 
 
 
-CELERY_BROKER_URL = "redis://redis:6379/0"
-CELERY_RESULT_BACKEND = "redis://redis:6379/1"
+CELERY_BROKER_URL = "redis://redis:6379/0"  # Redis database 0 is used for the broker.
+CELERY_RESULT_BACKEND = "redis://redis:6379/1"  # Redis database 1 is used for storing task results.
 
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'UTC'
+CELERY_ACCEPT_CONTENT = ['json']  # Accept only JSON serialized content.
+CELERY_TASK_SERIALIZER = 'json'  # Use JSON for serializing tasks.
+CELERY_RESULT_SERIALIZER = 'json'  # Use JSON for serializing results.
+CELERY_TIMEZONE = 'UTC'  # Set UTC as the timezone.
 
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': ["redis://redis:6379/0"],  # Corrected to a flat list
+            'hosts': ["redis://redis:6379/0"],  # Correct Redis host configuration.
         },
     },
 }
-
 
 
 
