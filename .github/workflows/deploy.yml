@@ -20,19 +20,21 @@ jobs:
 
       - name: Create .env File from Secrets
         run: |
-          echo "AZURE_ACCOUNT_KEY=${{ secrets.AZURE_ACCOUNT_KEY }}" > .env
-          echo "AZURE_ACCOUNT_NAME=${{ secrets.AZURE_ACCOUNT_NAME }}" >> .env
-          echo "AZURE_CONNECTION_STRING=${{ secrets.AZURE_CONNECTION_STRING }}" >> .env
-          echo "AZURE_MEDIA_CONTAINER=${{ secrets.AZURE_MEDIA_CONTAINER }}" >> .env
-          echo "AZURE_STATIC_CONTAINER=${{ secrets.AZURE_STATIC_CONTAINER }}" >> .env
-          echo "CELERY_BROKER_URL=${{ secrets.CELERY_BROKER_URL }}" >> .env
-          echo "CELERY_RESULT_BACKEND=${{ secrets.CELERY_RESULT_BACKEND }}" >> .env
-          echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
-          echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
-          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
-          echo "DB_USER=${{ secrets.DB_USER }}" >> .env
-          echo "DEBUG=${{ secrets.DEBUG }}" >> .env
-          echo "DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> .env
+          cat << EOF > .env
+          AZURE_ACCOUNT_KEY=${{ secrets.AZURE_ACCOUNT_KEY }}
+          AZURE_ACCOUNT_NAME=${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_CONNECTION_STRING=${{ secrets.AZURE_CONNECTION_STRING }}
+          AZURE_MEDIA_CONTAINER=${{ secrets.AZURE_MEDIA_CONTAINER }}
+          AZURE_STATIC_CONTAINER=${{ secrets.AZURE_STATIC_CONTAINER }}
+          CELERY_BROKER_URL=${{ secrets.CELERY_BROKER_URL }}
+          CELERY_RESULT_BACKEND=${{ secrets.CELERY_RESULT_BACKEND }}
+          DB_HOST=${{ secrets.DB_HOST }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DB_USER=${{ secrets.DB_USER }}
+          DEBUG=${{ secrets.DEBUG }}
+          DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
+          EOF
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -42,63 +44,37 @@ jobs:
 
       - name: Build and Push Docker Images
         run: |
-          # Build and push images for each service
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest --build-arg SERVICE=web .
-          docker push ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
+          docker-compose -f docker-compose.yml build
+          docker-compose -f docker-compose.yml push
 
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest --build-arg SERVICE=celery .
-          docker push ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
-
-      - name: Deploy to Azure VM using Docker Run
+      - name: Deploy to Azure VM using Docker Compose
         env:
-            VM_KEY: ${{ secrets.VM_KEY }}
-            VM_IP: ${{ secrets.VM_IP }}
-            VM_USER: ${{ secrets.VM_USER }}
+          VM_KEY: ${{ secrets.VM_KEY }}
+          VM_IP: ${{ secrets.VM_IP }}
+          VM_USER: ${{ secrets.VM_USER }}
         run: |
-            # Create SSH key file
-            echo "$VM_KEY" > azure-vm-key.pem
-            chmod 600 azure-vm-key.pem
+          # Prepare SSH key
+          echo "$VM_KEY" > azure-vm-key.pem
+          chmod 600 azure-vm-key.pem
 
-            # Transfer the .env file to the Azure VM
-            scp -o StrictHostKeyChecking=no -i azure-vm-key.pem .env "$VM_USER@$VM_IP:/home/$VM_USER/.env"
+            docker system prune -a -f
+          # Transfer required files
+          scp -o StrictHostKeyChecking=no -i azure-vm-key.pem .env docker-compose.yml "$VM_USER@$VM_IP:/home/$VM_USER/"
 
-            # Connect to Azure VM instance and deploy
-            ssh -o StrictHostKeyChecking=no -i azure-vm-key.pem "$VM_USER@$VM_IP" << EOF
-              set -e
-              echo "Starting deployment on Azure VM..."
+          # Deploy using docker-compose
+          ssh -o StrictHostKeyChecking=no -i azure-vm-key.pem "$VM_USER@$VM_IP" << EOF
+            set -e
+            echo "Deploying application on Azure VM..."
+            
+            # Login to DockerHub
+            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-              # Docker login
-              echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-  
-              # Stop and remove existing containers if they exist
-              docker rm -f friendbook_web || true
-              docker rm -f friendbook_celery || true
-              docker rm -f redis || true
-          
-              docker system prune -a -f
-  
-              # Pull the latest Docker images
-              docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
-              docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
-              
-              # Start Redis container
-              echo "Starting Redis container..."
-              docker run -d --name redis \
-                -p 6379:6379 \
-                redis:alpine
-  
-              # Start Django container
-              echo "Starting Django container..."
-              docker run -d --name friendbook_web -p 8000:8000 \
-                --env-file .env \
-                ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
-  
-              # Run Celery worker container
-              echo "Starting Celery worker container..."
-              docker run -d --name friendbook_celery \
-                --env-file .env \
-                ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest \
-                celery -A mysite worker --loglevel=info
-  
-              echo "Deployment complete!"
-            EOF
+            # Stop existing containers
+            docker-compose down || true
+
+            # Pull latest images and start services
+            docker-compose pull
+            docker-compose up -d
+
+            echo "Deployment completed!"
+          EOF
