@@ -23,18 +23,18 @@ jobs:
       # Create .env file with secrets
       - name: Create .env File from Secrets
         run: |
-          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" > .env
-          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
-          echo "AZURE_STORAGE_ACCOUNT_NAME=${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}" >> .env
-          echo "AZURE_STORAGE_ACCOUNT_KEY=${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }}" >> .env
-          echo "AZURE_STORAGE_CONNECTION_STRING=${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" >> .env
-          echo "AZURE_CONTAINER_NAME=${{ secrets.AZURE_CONTAINER_NAME }}" >> .env
-          echo "AZURE_DATABASE_URL=${{ secrets.AZURE_DATABASE_URL }}" >> .env
-          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
-          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
-          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
+          echo "AZURE_ACCOUNT_KEY=${{ secrets.AZURE_ACCOUNT_KEY }}" > .env
+          echo "AZURE_ACCOUNT_NAME=${{ secrets.AZURE_ACCOUNT_NAME }}" >> .env
+          echo "AZURE_CONNECTION_STRING=${{ secrets.AZURE_CONNECTION_STRING }}" >> .env
+          echo "AZURE_MEDIA_CONTAINER=${{ secrets.AZURE_MEDIA_CONTAINER }}" >> .env
+          echo "AZURE_STATIC_CONTAINER=${{ secrets.AZURE_STATIC_CONTAINER }}" >> .env
+          echo "CELERY_BROKER_URL=${{ secrets.CELERY_BROKER_URL }}" >> .env
+          echo "CELERY_RESULT_BACKEND=${{ secrets.CELERY_RESULT_BACKEND }}" >> .env
+          echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
+          echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
+          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+          echo "DB_USER=${{ secrets.DB_USER }}" >> .env
           echo "DEBUG=${{ secrets.DEBUG }}" >> .env
-          echo "FRONT_END=${{ secrets.FRONT_END }}" >> .env
           echo "DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> .env
 
       # Docker login to DockerHub
@@ -47,30 +47,27 @@ jobs:
       # Build and Push Docker Images
       - name: Build and Push Docker Images
         run: |
-          # Build and push the web service
           docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest --build-arg SERVICE=web .
           docker push ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
-
-          # Build and push the Celery service
           docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest --build-arg SERVICE=celery .
           docker push ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
 
       # Deploy to Azure VM using Docker Run
       - name: Deploy to Azure VM
         env:
-          AZURE_PEM_KEY: ${{ secrets.AZURE_PEM_KEY }}
-          AZURE_HOST: ${{ secrets.AZURE_HOST }}
-          AZURE_USER: ${{ secrets.AZURE_USER }}
+          VM_KEY: ${{ secrets.VM_KEY }}
+          VM_IP: ${{ secrets.VM_IP }}
+          VM_USER: ${{ secrets.VM_USER }}
         run: |
           # Create SSH key file
-          echo "$AZURE_PEM_KEY" > azure-key.pem
-          chmod 600 azure-key.pem
+          echo "$VM_KEY" > azure-vm-key.pem
+          chmod 600 azure-vm-key.pem
 
-          # Transfer the .env file to Azure VM
-          scp -o StrictHostKeyChecking=no -i azure-key.pem .env "$AZURE_USER@$AZURE_HOST:/home/$AZURE_USER/.env"
+          # Transfer .env file to Azure VM
+          scp -o StrictHostKeyChecking=no -i azure-vm-key.pem .env "$VM_USER@$VM_IP:/home/$VM_USER/.env"
 
           # Connect to Azure VM and deploy
-          ssh -o StrictHostKeyChecking=no -i azure-key.pem "$AZURE_USER@$AZURE_HOST" << EOF
+          ssh -o StrictHostKeyChecking=no -i azure-vm-key.pem "$VM_USER@$VM_IP" << EOF
             set -e
             echo "Starting deployment on Azure VM..."
 
@@ -80,36 +77,37 @@ jobs:
             # Stop and remove existing containers if they exist
             docker rm -f friendbook_web || true
             docker rm -f friendbook_celery || true
+            docker rm -f redis || true
 
             # Cleanup unused Docker resources
             docker system prune -a -f
+
+            # Create Docker network if it doesn't exist
+            docker network create friendbook-network || true
 
             # Pull the latest Docker images
             docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
             docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
 
-            # Start Docker network if it doesn't exist
-            docker network create friendbook-network || true
-
-            # Start the Redis container
+            # Start Redis container
             echo "Starting Redis container..."
             docker run -d --name redis --network friendbook-network -p 6379:6379 redis:alpine
 
-            # Start the Django container
+            # Start Django container
             echo "Starting Django container..."
             docker run -d --name friendbook_web \
               --network friendbook-network \
               -p 8000:8000 \
-              --env-file /home/$AZURE_USER/.env \
+              --env-file /home/$VM_USER/.env \
               ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
 
-            # Start the Celery worker container
+            # Start Celery worker container
             echo "Starting Celery worker container..."
             docker run -d --name friendbook_celery \
               --network friendbook-network \
-              --env-file /home/$AZURE_USER/.env \
+              --env-file /home/$VM_USER/.env \
               ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest \
               celery -A mysite worker --loglevel=info
 
-            echo "Deployment complete on Azure VM!"
+            echo "Deployment complete!"
           EOF
