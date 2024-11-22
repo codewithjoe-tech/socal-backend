@@ -66,6 +66,8 @@ class GoogleLogin(PublicApi):
             "prompt":"select_account"
         }
         print(redirect_uri)
+        print(google_client_id)
+        
        
         url = f"https://accounts.google.com/o/oauth2/v2/auth?{urllib.parse.urlencode(params)}"
         return redirect(url)
