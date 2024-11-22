@@ -176,6 +176,7 @@ CHANNEL_LAYERS = {
     },
 }
 
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=5),
@@ -192,3 +193,5 @@ EMAIL_HOST_USER = 'codewithjoe16@gmail.com'
 EMAIL_HOST_PASSWORD = 'uhwj zzog jevi qryv'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
