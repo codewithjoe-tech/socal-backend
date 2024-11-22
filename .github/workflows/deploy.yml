@@ -84,13 +84,13 @@ jobs:
               
   
               echo "Starting Django container..."
-              docker run -d --rm --name friendbook_web -p 8000:8000 \
+              docker run -d  --name friendbook_web -p 8000:8000 \
                 --env-file .env \
                 ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
   
               # Run Celery worker container
               echo "Starting Celery worker container..."
-              docker run -d --rm --name friendbook_celery \
+              docker run -d  --name friendbook_celery \
                 --env-file .env \
                 ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest \
                 celery -A mysite worker --loglevel=info
