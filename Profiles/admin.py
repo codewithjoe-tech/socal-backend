@@ -6,6 +6,16 @@ def delete_all_posts(modeladmin, request, queryset):
     Post.objects.all().delete()
     messages.success(request, "All posts have been deleted.")
 
+
+def delete_profiles_with_no_user(modeladmin, request, queryset):
+    profiles_to_delete = Profile.objects.filter(user=None)
+    count = profiles_to_delete.count() 
+    profiles_to_delete.delete()
+    messages.success(request, f"{count} profiles with no associated user have been deleted.")
+
+
+
+
 def delete_all_reels(modeladmin, request, queryset):
     Reels.objects.all().delete()
     messages.success(request, "All reels have been deleted.")
@@ -22,9 +32,11 @@ def delete_all_reelLikes(modeladmin,request,queryset):
     ReelLike.objects.all().delete()
 
 
+
+
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    pass
+    actions = [delete_profiles_with_no_user]
 
 @admin.register(Follow)
 class FollowAdmin(admin.ModelAdmin):
