@@ -20,7 +20,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      # Create .env file with secrets
+     
       - name: Create .env File from Secrets
         run: |
           echo "AZURE_ACCOUNT_KEY=${{ secrets.AZURE_ACCOUNT_KEY }}" > .env

@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from .models import ReportPost
 from .serializers import ReportPostSerializer
+from . tasks import report_posts
 
 class ReportPostView(APIView):
     permission_classes = [IsAuthenticated]
@@ -26,6 +27,7 @@ class ReportPostView(APIView):
         serializer = ReportPostSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
+            report_posts.delay()
             return Response({"message":"Reported Successfully"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
