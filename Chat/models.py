@@ -20,7 +20,7 @@ class Chatroom(models.Model):
     name = models.CharField(max_length=255, blank=True, null=True, unique=True)
     chat_type = models.CharField(max_length=10, choices=CHATROOM_TYPES, default='dm')
     created_at = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="created_chatrooms")
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, null=True, related_name="created_chatrooms")
 
     def __str__(self):
         return self.name or f"Chatroom {self.id}"
@@ -112,8 +112,8 @@ class AudioMessage(models.Model):
 
 
 class ChatRoomDeleted(models.Model):
-    user = models.ForeignKey(User, blank=True, null=True, on_delete=models.SET_NULL)
-    chatroom = models.ForeignKey(Chatroom, blank=True, null=True, on_delete=models.SET_NULL)
+    user = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
+    chatroom = models.ForeignKey(Chatroom, blank=True, null=True, on_delete=models.CASCADE)
     disabled = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now=True,null=True,blank=True)
 
