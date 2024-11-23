@@ -10,7 +10,7 @@ import os
 
 load_dotenv()
 
-frontend = os.getenv('FRONT_END')
+frontend = 'https://friendbook.codewithjoe.in'
 
 
 
