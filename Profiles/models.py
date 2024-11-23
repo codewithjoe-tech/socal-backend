@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
     profile_picture = models.ImageField(upload_to="users/profile", null=True, blank=True)
     bio = models.CharField(max_length=200, null=True, blank=True)
     gender = models.CharField(max_length=50, null=True, blank=True)
