@@ -116,7 +116,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'friendbook',
         'USER': 'postgres',
-        'PASSWORD': 'Sneha@1103',
+        'PASSWORD': '@1103',
         'HOST': 'friendbook.postgres.database.azure.com',
         'PORT': '5432',
         'OPTIONS': {
