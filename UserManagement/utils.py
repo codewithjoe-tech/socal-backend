@@ -10,7 +10,7 @@ import os
 
 load_dotenv()
 
-frontend = 'https://friendbook.codewithjoe.in'
+frontend = 'http://localhost:5173'
 
 
 

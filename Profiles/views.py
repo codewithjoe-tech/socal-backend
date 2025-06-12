@@ -23,7 +23,7 @@ class AuthenticatedView(APIView):
 def get_me(request):
     try:
         profile = Profile.objects.get(user = request.user)
-        serializer = ProfileSerializer(profile)
+        serializer = ProfileSerializer(profile,context={"request":request})
         response_data = {
             'username':request.user.username,
             'profile':serializer.data

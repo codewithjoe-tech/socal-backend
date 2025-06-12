@@ -18,7 +18,7 @@ def data_preprocessing_reel():
     return profile_index, reel_index, user_reel_matrix
 
 def factorize_reel_matrix(user_reel_matrix):
-    svd = TruncatedSVD(n_components=10)
+    svd = TruncatedSVD(n_components=2)
     user_factors = svd.fit_transform(user_reel_matrix)
     reel_factors = svd.components_.T
     return user_factors, reel_factors
