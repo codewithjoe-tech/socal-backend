@@ -85,32 +85,21 @@ def recommend_reels_for_user(profile_id):
     recommendation.save()
     return f'Reel recommendations generated for profile {profile_id} successfully!'
 
-from azure.storage.blob import BlobServiceClient, BlobClient
+# from azure.storage.blob import BlobServiceClient, BlobClient
 import tempfile
-
 
 @shared_task
 def generate_thumbnail_for_reel(reel_id):
-    
-
     reel = Reels.objects.get(id=reel_id)
+
     if not reel.video or reel.thumbnail:
         return
 
-    connection_string = settings.AZURE_CONNECTION_STRING
-    container_name = settings.AZURE_MEDIA_CONTAINER
+    video_path = os.path.join(settings.MEDIA_ROOT, reel.video.name)
 
-    video_blob_name = reel.video.name 
-
-    with tempfile.NamedTemporaryFile(suffix='.mp4') as temp_video_file, tempfile.NamedTemporaryFile(suffix='.jpg') as temp_thumbnail_file:
+    with tempfile.NamedTemporaryFile(suffix='.jpg') as temp_thumbnail_file:
         try:
-            blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-            blob_client = blob_service_client.get_blob_client(container=container_name, blob=video_blob_name)
-
-            with open(temp_video_file.name, "wb") as video_file:
-                video_file.write(blob_client.download_blob().readall())
-
-            ffmpeg.input(temp_video_file.name, ss=1).output(
+            ffmpeg.input(video_path, ss=1).output(
                 temp_thumbnail_file.name, vframes=1, pix_fmt='yuv420p', update=True
             ).overwrite_output().run()
 
@@ -122,6 +111,7 @@ def generate_thumbnail_for_reel(reel_id):
         except Exception as e:
             print(f"Error generating thumbnail for reel {reel_id}: {str(e)}")
             raise
+
 
 @shared_task
 def generate_thumbnails():

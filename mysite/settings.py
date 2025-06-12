@@ -57,6 +57,7 @@ LOGGING = {
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+     'whitenoise.middleware.WhiteNoiseMiddleware',  
     'django.contrib.sessions.middleware.SessionMiddleware',
     "corsheaders.middleware.CorsMiddleware",
     'django.middleware.common.CommonMiddleware',
@@ -113,15 +114,8 @@ REST_FRAMEWORK = {
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'friendbook',
-        'USER': 'postgres',
-        'PASSWORD': '@1103',
-        'HOST': 'friendbook.postgres.database.azure.com',
-        'PORT': '5432',
-        'OPTIONS': {
-            'sslmode': 'require',
-        },
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
@@ -139,22 +133,13 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Azure storage settings
-AZURE_ACCOUNT_KEY = os.getenv('AZURE_ACCOUNT_KEY')
-AZURE_ACCOUNT_NAME = os.getenv('AZURE_ACCOUNT_NAME', 'friendbookstorage')
-AZURE_STATIC_CONTAINER = 'static'
-AZURE_MEDIA_CONTAINER = 'media'
-AZURE_CONNECTION_STRING = os.getenv('AZURE_CONNECTION_STRING')
 
-AZURE_CUSTOM_DOMAIN = f"{AZURE_ACCOUNT_NAME}.blob.core.windows.net"
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# Media files configuration
-DEFAULT_FILE_STORAGE = 'mysite.storage_backends.CustomAzureMediaStorage'
-MEDIA_URL = f"https://{AZURE_CUSTOM_DOMAIN}/{AZURE_MEDIA_CONTAINER}/"
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# Static files configuration
-STATICFILES_STORAGE = 'mysite.storage_backends.CustomAzureStaticStorage'
-STATIC_URL = f"https://{AZURE_CUSTOM_DOMAIN}/{AZURE_STATIC_CONTAINER}/"
 
 
 
@@ -190,7 +175,7 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'codewithjoe16@gmail.com'
-EMAIL_HOST_PASSWORD = 'uhwj zzog jevi qryv'
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')

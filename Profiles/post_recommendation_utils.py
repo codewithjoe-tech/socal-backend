@@ -31,7 +31,7 @@ def data_preprocessing_post():
     return profile_index , post_index , user_post_matrix
 
 def factorize_matrix(user_post_matrix):
-    svd = TruncatedSVD(n_components=10)
+    svd = TruncatedSVD(n_components=2)
     user_factors = svd.fit_transform(user_post_matrix)
     post_factors = svd.components_.T
     return user_factors, post_factors
