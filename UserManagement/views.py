@@ -20,7 +20,7 @@ from .tasks import send_mails_to_users
 
 load_dotenv()
 
-frontend = "http://localhost:5173"
+frontend = "https://friendbook.codewithjoe.in"
 User = get_user_model()
 
 class PublicApi(APIView):
