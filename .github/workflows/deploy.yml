@@ -56,61 +56,47 @@ jobs:
           docker push ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
 
       # Deploy to Azure VM using Docker Run
-      - name: Deploy to Azure VM
+      - name: Deploy to Hostinger VPS
         env:
           VM_KEY: ${{ secrets.VM_KEY }}
+          VM_KEY_PASSPHRASE: ${{ secrets.VM_KEY_PASSPHRASE }}
           VM_IP: ${{ secrets.VM_IP }}
-          VM_USER: ${{ secrets.VM_USER }}
+          VM_USER: root
         run: |
-          # Create SSH key file
-          echo "$VM_KEY" > azure-vm-key.pem
-          chmod 600 azure-vm-key.pem
+          echo "$VM_KEY" > hostinger_key.pem
+          chmod 600 hostinger_key.pem
 
-          # Transfer .env file to Azure VM
-          scp -o StrictHostKeyChecking=no -i azure-vm-key.pem .env "$VM_USER@$VM_IP:/home/$VM_USER/.env"
+          # Use SSH agent with passphrase
+          eval "$(ssh-agent -s)"
+          echo "$VM_KEY_PASSPHRASE" | SSH_ASKPASS=/bin/echo ssh-add hostinger_key.pem
 
-          # Connect to Azure VM and deploy
-          ssh -o StrictHostKeyChecking=no -i azure-vm-key.pem "$VM_USER@$VM_IP" << EOF
+          scp -o StrictHostKeyChecking=no -i hostinger_key.pem .env "$VM_USER@$VM_IP:/root/.env"
+
+          ssh -o StrictHostKeyChecking=no -i hostinger_key.pem "$VM_USER@$VM_IP" << EOF
             set -e
-            echo "Starting deployment on Azure VM..."
+            echo "Deploying Django app as root..."
 
-            # Docker login
-            echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-
-            # Stop and remove existing containers if they exist
-            docker rm -f friendbook_web || true
-            docker rm -f friendbook_celery || true
-            docker rm -f redis || true
-
-            # Cleanup unused Docker resources
-            docker system prune -a -f
-
-            # Create Docker network if it doesn't exist
-            docker network create friendbook-network || true
-
-            # Pull the latest Docker images
+            # Docker login and run containers here
+            docker login -u "${{ secrets.DOCKER_USERNAME }}" -p "${{ secrets.DOCKER_PASSWORD }}"
             docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
             docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
 
-            # Start Redis container
-            echo "Starting Redis container..."
+            docker network create friendbook-network || true
+
+            docker rm -f friendbook_web friendbook_celery redis || true
             docker run -d --name redis --network friendbook-network -p 6379:6379 redis:alpine
 
-            # Start Django container
-            echo "Starting Django container..."
             docker run -d --name friendbook_web \
               --network friendbook-network \
               -p 8000:8000 \
-              --env-file /home/$VM_USER/.env \
+              --env-file /root/.env \
               ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
 
-            # Start Celery worker container
-            echo "Starting Celery worker container..."
             docker run -d --name friendbook_celery \
               --network friendbook-network \
-              --env-file /home/$VM_USER/.env \
+              --env-file /root/.env \
               ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest \
               celery -A mysite worker --loglevel=info
 
-            echo "Deployment complete!"
+            echo "Deployment completed!"
           EOF
