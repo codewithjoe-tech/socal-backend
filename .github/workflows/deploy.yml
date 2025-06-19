@@ -1,4 +1,4 @@
-name: Deploy Django App to Azure VM
+name: Deploy Django App to Hostinger VM
 
 on:
   push:
@@ -20,7 +20,7 @@ jobs:
         with:
           python-version: '3.11'
 
-     
+      # Create .env File from Secrets
       - name: Create .env File from Secrets
         run: |
           echo "AZURE_ACCOUNT_KEY=${{ secrets.AZURE_ACCOUNT_KEY }}" > .env
@@ -55,24 +55,24 @@ jobs:
           docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest --build-arg SERVICE=celery .
           docker push ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
 
-      # Deploy to Azure VM using Docker Run
-      - name: Deploy to Azure VM
+      # Deploy to Hostinger VM
+      - name: Deploy to Hostinger VM
         env:
-          VM_KEY: ${{ secrets.VM_KEY }}
           VM_IP: ${{ secrets.VM_IP }}
           VM_USER: ${{ secrets.VM_USER }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
         run: |
-          # Create SSH key file
-          echo "$VM_KEY" > azure-vm-key.pem
-          chmod 600 azure-vm-key.pem
+          # Install sshpass for password-based SSH authentication
+          sudo apt-get update
+          sudo apt-get install -y sshpass
 
-          # Transfer .env file to Azure VM
-          scp -o StrictHostKeyChecking=no -i azure-vm-key.pem .env "$VM_USER@$VM_IP:/home/$VM_USER/.env"
+          # Transfer .env file to Hostinger VM
+          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no .env "$VM_USER@$VM_IP:/home/$VM_USER/.env"
 
-          # Connect to Azure VM and deploy
-          ssh -o StrictHostKeyChecking=no -i azure-vm-key.pem "$VM_USER@$VM_IP" << EOF
+          # Connect to Hostinger VM and deploy
+          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no "$VM_USER@$VM_IP" << EOF
             set -e
-            echo "Starting deployment on Azure VM..."
+            echo "Starting deployment on Hostinger VM..."
 
             # Docker login
             echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
