@@ -27,12 +27,13 @@ jobs:
           echo "AZURE_ACCOUNT_NAME=${{ secrets.AZURE_ACCOUNT_NAME }}" >> .env
           echo "AZURE_MEDIA_CONTAINER=${{ secrets.AZURE_MEDIA_CONTAINER }}" >> .env
           echo "AZURE_STATIC_CONTAINER=${{ secrets.AZURE_STATIC_CONTAINER }}" >> .env
-          echo "CELERY_BROKER_URL=${{ secrets.CELERY_BROKER_URL }}" >> .env
-          echo "CELERY_RESULT_BACKEND=${{ secrets.CELERY_RESULT_BACKEND }}" >> .env
-          echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
+          echo "CELERY_BROKER_URL=redis://redis:6379/0" >> .env
+          echo "CELERY_RESULT_BACKEND=redis://redis:6379/0" >> .env
+          echo "DB_HOST=postgres" >> .env
           echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
-          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
           echo "DB_USER=${{ secrets.DB_USER }}" >> .env
+          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+          echo "DB_PORT=5432" >> .env
           echo "DEBUG=${{ secrets.DEBUG }}" >> .env
           echo "DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> .env
           echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
@@ -96,19 +97,20 @@ jobs:
             set -e
             echo "Starting deployment on Hostinger VM..."
 
-            # Create media directory on VM and set permissions
-            echo "Creating media directory..."
+            # Create directories for media and PostgreSQL data
+            echo "Creating media and database directories..."
             mkdir -p /var/www/friendbook/media
+            mkdir -p /var/lib/postgresql/data
             chmod -R 775 /var/www/friendbook/media
+            chmod -R 700 /var/lib/postgresql/data
             chown -R root:root /var/www/friendbook/media
+            chown -R 999:999 /var/lib/postgresql/data
 
             # Docker login
             echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
             # Stop and remove existing containers if they exist
-            docker rm -f friendbook_web || true
-            docker rm -f friendbook_celery || true
-            docker rm -f redis || true
+            docker rm -f friendbook_web friendbook_celery redis postgres || true
 
             # Cleanup unused Docker resources
             docker system prune -a -f
@@ -118,6 +120,17 @@ jobs:
 
             # Pull the latest Docker images
             docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
+            docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
+
+            # Start PostgreSQL container
+            echo "Starting PostgreSQL container..."
+            docker run -d --name postgres \
+              --network friendbook-network \
+              -e POSTGRES_USER=${{ secrets.DB_USER }} \
+              -e POSTGRES_PASSWORD=${{ secrets.DB_PASSWORD }} \
+              -e POSTGRES_DB=${{ secrets.DB_NAME }} \
+              -v /var/lib/postgresql/data:/var/lib/postgresql/data \
+              postgres:13
 
             # Start Redis container
             echo "Starting Redis container..."
@@ -132,14 +145,24 @@ jobs:
               --env-file /root/.env \
               ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
 
+            # Run Django migrations
+            echo "Running Django migrations..."
+            docker exec friendbook_web python manage.py migrate
+
             # Start Celery worker container with media bind mount
             echo "Starting Celery worker container..."
-            docker run -d --name friendbook_web \
+            docker run -d --name friendbook_celery \
               --network friendbook-network \
               -v /var/www/friendbook/media:/app/media \
               --env-file /root/.env \
-              ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest \
+              ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest \
               celery -A mysite worker --loglevel=info
+
+            # Verify container status
+            echo "Checking container status..."
+            docker ps -a
+            docker logs friendbook_celery | tail -n 20
+            docker logs postgres | tail -n 20
 
             echo "Deployment complete!"
           EOF
