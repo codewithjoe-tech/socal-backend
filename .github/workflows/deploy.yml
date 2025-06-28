@@ -10,20 +10,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout code
+      # Checkout the code
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Set up Python
+      # Set up Python (optional but kept for cache or Python-based steps)
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      # Create .env File from Secrets
-      - name: Create .env File from Secrets
+      # Create .env file from GitHub Secrets
+      - name: Create .env File
         run: |
-          echo "AZURE_ACCOUNT_KEY=${{ secrets.AZURE_ACCOUNT_KEY }}" > .env
+          touch .env
+          echo "AZURE_ACCOUNT_KEY=${{ secrets.AZURE_ACCOUNT_KEY }}" >> .env
           echo "AZURE_ACCOUNT_NAME=${{ secrets.AZURE_ACCOUNT_NAME }}" >> .env
           echo "AZURE_MEDIA_CONTAINER=${{ secrets.AZURE_MEDIA_CONTAINER }}" >> .env
           echo "AZURE_STATIC_CONTAINER=${{ secrets.AZURE_STATIC_CONTAINER }}" >> .env
@@ -42,8 +43,8 @@ jobs:
           echo "AZURE_CONNECTION_STRING=${{ secrets.AZURE_CONNECTION_STRING }}" >> .env
           echo "EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}" >> .env
 
-      # Docker login to DockerHub
-      - name: Login to DockerHub
+      # Docker login to Docker Hub
+      - name: Docker Login
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -54,116 +55,92 @@ jobs:
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest --build-arg SERVICE=web .
           docker push ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
+
           docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest --build-arg SERVICE=celery .
           docker push ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
 
-      # Verify VM Connectivity
-      - name: Verify VM Connectivity
-        env:
-          VM_IP: ${{ secrets.VM_IP }}
-        run: |
-          echo "Pinging VM to check connectivity..."
-          ping -c 4 $VM_IP || echo "Warning: Ping failed, proceeding with deployment attempt..."
-
-      # Deploy to Hostinger VM
+      # Deploy to VM
       - name: Deploy to Hostinger VM
         env:
           VM_IP: ${{ secrets.VM_IP }}
           VM_USER: root
           SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
         run: |
-          # Install sshpass for password-based SSH authentication
           sudo apt-get update
           sudo apt-get install -y sshpass
 
-          # Verify root home directory exists and transfer .env file
-          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 "$VM_USER@$VM_IP" << EOF
+          echo "Connecting to VM..."
+
+          # Upload .env file
+          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no .env $VM_USER@$VM_IP:/root/.env
+
+          # Deploy on VM
+          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_IP << 'EOF'
             set -e
-            echo "Verifying root home directory..."
-            if [ ! -d "/root" ]; then
-              echo "Error: /root directory does not exist"
-              exit 1
-            fi
-            echo "Root home directory exists"
-          EOF
 
-          # Transfer .env file to /root/.env
-          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 .env "$VM_USER@$VM_IP:/root/.env" || {
-            echo "Error: Failed to transfer .env file to VM"
-            exit 1
-          }
-
-          # Connect to Hostinger VM and deploy
-          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 "$VM_USER@$VM_IP" << EOF
-            set -e
-            echo "Starting deployment on Hostinger VM..."
-
-            # Create directories for media and PostgreSQL data
-            echo "Creating media and database directories..."
+            echo "Creating necessary directories..."
             mkdir -p /var/www/friendbook/media
             mkdir -p /var/lib/postgresql/data
+
             chmod -R 775 /var/www/friendbook/media
             chmod -R 700 /var/lib/postgresql/data
             chown -R root:root /var/www/friendbook/media
             chown -R 999:999 /var/lib/postgresql/data
 
-            # Docker login
+            echo "Logging into Docker..."
             echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-            # Stop and remove existing containers if they exist
+            echo "Stopping and removing old containers if any..."
             docker rm -f friendbook_web friendbook_celery redis postgres || true
 
-            # Cleanup unused Docker resources
-            docker system prune -a -f
+            echo "Cleaning old Docker resources..."
+            docker system prune -af
 
-            # Create Docker network if it doesn't exist
+            echo "Creating Docker network..."
             docker network create friendbook-network || true
 
-            # Pull the latest Docker images
+            echo "Pulling latest images..."
             docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
             docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
 
-            # Start PostgreSQL container
-            echo "Starting PostgreSQL container..."
+            echo "Starting PostgreSQL..."
             docker run -d --name postgres \
               --network friendbook-network \
+              --restart unless-stopped \
               -e POSTGRES_USER=${{ secrets.DB_USER }} \
               -e POSTGRES_PASSWORD=${{ secrets.DB_PASSWORD }} \
               -e POSTGRES_DB=${{ secrets.DB_NAME }} \
               -v /var/lib/postgresql/data:/var/lib/postgresql/data \
               postgres:13
 
-            # Start Redis container
-            echo "Starting Redis container..."
-            docker run -d --name redis --network friendbook-network -p 6379:6379 redis:alpine
+            echo "Starting Redis..."
+            docker run -d --name redis \
+              --network friendbook-network \
+              --restart unless-stopped \
+              -p 6379:6379 redis:alpine
 
-            # Start Django container with media bind mount
-            echo "Starting Django container..."
+            echo "Starting Django..."
             docker run -d --name friendbook_web \
               --network friendbook-network \
+              --restart unless-stopped \
               -p 8000:8000 \
               -v /var/www/friendbook/media:/app/media \
               --env-file /root/.env \
               ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
 
-            # Run Django migrations
             echo "Running Django migrations..."
             docker exec friendbook_web python manage.py migrate
 
-            # Start Celery worker container with media bind mount
-            echo "Starting Celery worker container..."
+            echo "Starting Celery worker..."
             docker run -d --name friendbook_celery \
               --network friendbook-network \
+              --restart on-failure \
               -v /var/www/friendbook/media:/app/media \
               --env-file /root/.env \
               ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest \
               celery -A mysite worker --loglevel=info
 
-            # Verify container status
-            echo "Checking container status..."
+            echo "Deployment successful. Checking containers..."
             docker ps -a
-            docker logs friendbook_celery | tail -n 20
-            docker logs postgres | tail -n 20
 
-            echo "Deployment complete!"
-          EOF
+            EOF
