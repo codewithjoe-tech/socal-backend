@@ -14,10 +14,10 @@ from . tasks import *
 
 User = get_user_model()
 
-class PublicApi(APIView):
+class AdminAPI(APIView):
     permission_classes = (IsAdminUser,)
     
-class UsersView(PublicApi):
+class UsersView(AdminAPI):
     def get(self, request):
         try:
             users = User.objects.all()
@@ -63,7 +63,7 @@ class UsersView(PublicApi):
 
  
 
-class Reported(PublicApi):
+class Reported(AdminAPI):
     def get(self, request, type):
         try:
             model_map = {
@@ -139,7 +139,7 @@ class Reported(PublicApi):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class ReportedReason(PublicApi):
+class ReportedReason(AdminAPI):
     def get(self,request,id):
         print("Working")
         select_value = request.GET.get('selected_value')
