@@ -10,47 +10,48 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the code
+      # 1. Checkout your code
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Set up Python (optional but kept for cache or Python-based steps)
+      # 2. Set up Python (for possible pip caching or script support)
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      # Create .env file from GitHub Secrets
+      # 3. Create .env file from secrets
       - name: Create .env File
         run: |
-          touch .env
-          echo "AZURE_ACCOUNT_KEY=${{ secrets.AZURE_ACCOUNT_KEY }}" >> .env
-          echo "AZURE_ACCOUNT_NAME=${{ secrets.AZURE_ACCOUNT_NAME }}" >> .env
-          echo "AZURE_MEDIA_CONTAINER=${{ secrets.AZURE_MEDIA_CONTAINER }}" >> .env
-          echo "AZURE_STATIC_CONTAINER=${{ secrets.AZURE_STATIC_CONTAINER }}" >> .env
-          echo "CELERY_BROKER_URL=redis://redis:6379/0" >> .env
-          echo "CELERY_RESULT_BACKEND=redis://redis:6379/0" >> .env
-          echo "DB_HOST=postgres" >> .env
-          echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
-          echo "DB_USER=${{ secrets.DB_USER }}" >> .env
-          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
-          echo "DB_PORT=5432" >> .env
-          echo "DEBUG=${{ secrets.DEBUG }}" >> .env
-          echo "DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> .env
-          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
-          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
-          echo "FRONT_END=${{ secrets.FRONT_END }}" >> .env
-          echo "AZURE_CONNECTION_STRING=${{ secrets.AZURE_CONNECTION_STRING }}" >> .env
-          echo "EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}" >> .env
+          cat <<EOF > .env
+          AZURE_ACCOUNT_KEY=${{ secrets.AZURE_ACCOUNT_KEY }}
+          AZURE_ACCOUNT_NAME=${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_MEDIA_CONTAINER=${{ secrets.AZURE_MEDIA_CONTAINER }}
+          AZURE_STATIC_CONTAINER=${{ secrets.AZURE_STATIC_CONTAINER }}
+          CELERY_BROKER_URL=redis://redis:6379/0
+          CELERY_RESULT_BACKEND=redis://redis:6379/0
+          DB_HOST=postgres
+          DB_NAME=${{ secrets.DB_NAME }}
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DB_PORT=5432
+          DEBUG=${{ secrets.DEBUG }}
+          DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          FRONT_END=${{ secrets.FRONT_END }}
+          AZURE_CONNECTION_STRING=${{ secrets.AZURE_CONNECTION_STRING }}
+          EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}
+          EOF
 
-      # Docker login to Docker Hub
+      # 4. Log in to Docker Hub
       - name: Docker Login
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # Build and Push Docker Images
+      # 5. Build and push Docker images
       - name: Build and Push Docker Images
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest --build-arg SERVICE=web .
@@ -59,29 +60,24 @@ jobs:
           docker build -t ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest --build-arg SERVICE=celery .
           docker push ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
 
-      # Deploy to VM
+      # 6. Deploy to Hostinger VM via SSH
       - name: Deploy to Hostinger VM
         env:
           VM_IP: ${{ secrets.VM_IP }}
           VM_USER: root
           SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
         run: |
-          sudo apt-get update
-          sudo apt-get install -y sshpass
+          sudo apt-get update && sudo apt-get install -y sshpass
 
-          echo "Connecting to VM..."
-
-          # Upload .env file
+          echo "Uploading .env file..."
           sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no .env $VM_USER@$VM_IP:/root/.env
 
-          # Deploy on VM
+          echo "Connecting to VM and deploying services..."
           sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $VM_USER@$VM_IP << 'EOF'
             set -e
 
-            echo "Creating necessary directories..."
-            mkdir -p /var/www/friendbook/media
-            mkdir -p /var/lib/postgresql/data
-
+            echo "Preparing environment..."
+            mkdir -p /var/www/friendbook/media /var/lib/postgresql/data
             chmod -R 775 /var/www/friendbook/media
             chmod -R 700 /var/lib/postgresql/data
             chown -R root:root /var/www/friendbook/media
@@ -90,20 +86,24 @@ jobs:
             echo "Logging into Docker..."
             echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-            echo "Stopping and removing old containers if any..."
+            echo "Stopping and removing old containers..."
             docker rm -f friendbook_web friendbook_celery redis postgres || true
 
-            echo "Cleaning old Docker resources..."
-            docker system prune -af
+            echo "Cleaning up Docker system..."
+            docker system prune -af || true
+            docker volume prune -f || true
+
+            echo "Removing stale Redis volume..."
+            docker volume rm redis_data || true
 
             echo "Creating Docker network..."
             docker network create friendbook-network || true
 
-            echo "Pulling latest images..."
+            echo "Pulling latest Docker images..."
             docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
             docker pull ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest
 
-            echo "Starting PostgreSQL..."
+            echo "Starting PostgreSQL container..."
             docker run -d --name postgres \
               --network friendbook-network \
               --restart unless-stopped \
@@ -113,13 +113,19 @@ jobs:
               -v /var/lib/postgresql/data:/var/lib/postgresql/data \
               postgres:13
 
-            echo "Starting Redis..."
+            echo "Starting Redis container as master..."
             docker run -d --name redis \
-              --network friendbook-network \
-              --restart unless-stopped \
-              -p 6379:6379 redis:alpine
+            --network friendbook-network \
+            --restart unless-stopped \
+            -p 6379:6379 \
+            --health-cmd="redis-cli ping" \
+            --health-interval=10s \
+            --health-timeout=5s \
+            --health-retries=3 \
+            redis:alpine redis-server --replicaof no one
 
-            echo "Starting Django..."
+
+            echo "Starting Django container..."
             docker run -d --name friendbook_web \
               --network friendbook-network \
               --restart unless-stopped \
@@ -128,10 +134,10 @@ jobs:
               --env-file /root/.env \
               ${{ secrets.DOCKER_USERNAME }}/friendbook_web:latest
 
-            echo "Running Django migrations..."
+            echo "Applying Django migrations..."
             docker exec friendbook_web python manage.py migrate
 
-            echo "Starting Celery worker..."
+            echo "Starting Celery worker container..."
             docker run -d --name friendbook_celery \
               --network friendbook-network \
               --restart on-failure \
@@ -140,7 +146,6 @@ jobs:
               ${{ secrets.DOCKER_USERNAME }}/friendbook_celery:latest \
               celery -A mysite worker --loglevel=info
 
-            echo "Deployment successful. Checking containers..."
+            echo "Deployment complete. Active containers:"
             docker ps -a
-
-            EOF
+          EOF
