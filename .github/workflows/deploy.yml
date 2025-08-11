@@ -113,6 +113,10 @@ jobs:
               -v /var/lib/postgresql/data:/var/lib/postgresql/data \
               postgres:13
 
+            # Stop and remove the old Redis container
+            docker rm -f redis
+            
+            # Start Redis without the broken config path
             docker run -d --name redis \
               --network friendbook-network \
               --restart unless-stopped \
@@ -121,8 +125,7 @@ jobs:
               --health-interval=10s \
               --health-timeout=5s \
               --health-retries=3 \
-              redis:alpine \
-              sh -c "echo 'replicaof no one' > /usr/local/etc/redis/redis.conf && redis-server /usr/local/etc/redis/redis.conf --appendonly yes"
+              redis:alpine redis-server --appendonly yes
 
 
 
