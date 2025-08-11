@@ -113,16 +113,17 @@ jobs:
               -v /var/lib/postgresql/data:/var/lib/postgresql/data \
               postgres:13
 
-            echo "Starting Redis container as master..."
             docker run -d --name redis \
-            --network friendbook-network \
-            --restart unless-stopped \
-            -p 6379:6379 \
-            --health-cmd="redis-cli ping" \
-            --health-interval=10s \
-            --health-timeout=5s \
-            --health-retries=3 \
-            redis:alpine redis-server --replicaof no one
+              --network friendbook-network \
+              --restart unless-stopped \
+              -p 6379:6379 \
+              --health-cmd="redis-cli ping" \
+              --health-interval=10s \
+              --health-timeout=5s \
+              --health-retries=3 \
+              redis:alpine \
+              sh -c "echo 'replicaof no one' > /usr/local/etc/redis/redis.conf && redis-server /usr/local/etc/redis/redis.conf --appendonly yes"
+
 
 
             echo "Starting Django container..."
